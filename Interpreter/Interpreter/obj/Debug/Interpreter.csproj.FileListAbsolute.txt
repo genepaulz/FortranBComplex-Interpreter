@@ -5,3 +5,10 @@ C:\Users\seank\OneDrive\Desktop\Interpreter\Interpreter\obj\Debug\Interpreter.cs
 C:\Users\seank\OneDrive\Desktop\Interpreter\Interpreter\obj\Debug\Interpreter.csproj.CoreCompileInputs.cache
 C:\Users\seank\OneDrive\Desktop\Interpreter\Interpreter\obj\Debug\Interpreter.exe
 C:\Users\seank\OneDrive\Desktop\Interpreter\Interpreter\obj\Debug\Interpreter.pdb
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\bin\Debug\Interpreter.exe.config
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\bin\Debug\Interpreter.exe
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\bin\Debug\Interpreter.pdb
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\obj\Debug\Interpreter.csprojAssemblyReference.cache
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\obj\Debug\Interpreter.csproj.CoreCompileInputs.cache
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\obj\Debug\Interpreter.exe
+C:\Users\seank\OneDrive\Desktop\FortranBComplex-Interpreter\Interpreter\Interpreter\obj\Debug\Interpreter.pdb

@@ -18,8 +18,9 @@ namespace Interpreter
 
             while (true)
             {
+                if (interpreter.HasFinished) { break; }
                 string output = interpreter.Interpret(Console.ReadLine());
-                Console.Write(output);
+                Console.WriteLine(output);
             }
 
             time = DateTime.Now.ToString("h:mm:ss tt");
