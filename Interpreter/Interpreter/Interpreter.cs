@@ -17,6 +17,7 @@ namespace Interpreter
 
         bool hasStarted = false;
         bool hasFinished = false;
+        
 
         public Interpreter()
         {
@@ -32,6 +33,8 @@ namespace Interpreter
                 new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
                 new {ID = "Start", Pattern = @"^START$"},
                 new {ID = "Stop", Pattern = @"^STOP$"},
+                new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
+                new {ID = "Comment", Pattern = @"^\*.*"},
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -84,6 +87,10 @@ namespace Interpreter
                                 else
                                     throw new Exception();
                                 break;
+                            case "Input":
+                                output = Input(line);
+                                break;
+                               
                         }
 
                         return output;
@@ -192,6 +199,7 @@ namespace Interpreter
                             if (isVariableReal(val))
                             {
                                 v = variableList[val];
+                                
                             }
                             else
                             {
@@ -200,7 +208,7 @@ namespace Interpreter
                         }
                         else
                         {
-                            if (v.GetType() == typeof(int)) { v = Int32.Parse(value[n]); }
+                            if (v.GetType() == typeof(int)) { v = Int32.Parse(value[n]);}
                             else if (v.GetType() == typeof(float)) { v = Single.Parse(value[n]); }
                             else if (v.GetType() == typeof(bool)) 
                             {
@@ -258,5 +266,132 @@ namespace Interpreter
         {
             return (this.variableList.ContainsKey(name)) ? true : false;
         }
+
+        public bool isDigit(string name)
+        {
+            return (Regex.Match(name, @"^[0-9]+").Success) ? true : false;
+        }
+
+        public bool isFloat(string name)
+        {
+            return (Regex.Match(name, @"^[0-9]+\.[0-9]+").Success) ? true : false;
+        }
+        public bool isBool(string name)
+        {
+            return (Regex.Match(name, @"^(TRUE|FALSE)$").Success) ? true : false;
+        }
+
+        public bool isChar(string name)
+        {
+            return (Regex.Match(name, @"^\'.?\'$").Success) ? true : false;
+        }
+        public string Input(string line)
+        {
+            string output = "";
+            try
+            {
+                if (hasStarted)
+                {
+                    string[] variable_name = Regex.Matches(line, @"[^(INPUT:\,\s+)]\w*")
+                        .Cast<Match>()
+                        .Select(m => m.Value)
+                        .ToArray();
+                    
+                   string input = Console.ReadLine();
+
+                    string[] values = Regex.Matches(input, @"[^(INPUT:\,\s +)][a-zA-Z_\.\'\-\u00220-9]+")
+                        .Cast<Match>()
+                        .Select(m => m.Value)
+                        .ToArray();
+
+                    int i = 0; //counter
+
+                    foreach (string item in variable_name)
+                    {
+                        
+                        if (isVariableReal(item)) //if naa
+                        {
+                            var v = variableList[item];
+                           /* Console.WriteLine("" + values[i]);
+                            Console.WriteLine("" + v.GetType());
+                            Console.WriteLine("" + v);*/
+                            if (v.GetType() == typeof(int)) //kani ray mailhan
+                            {
+                               // var a = values[i];
+                                Console.WriteLine("oh dzae int");
+                                if (isDigit(values[i]))
+                                {
+                                    variableList[item] = Int32.Parse(values[i]);
+                                    Console.WriteLine("item: " + variableList[item]);
+                                    Console.WriteLine("SUCCESS!");
+                                }
+                                else
+                                {
+                                    throw new FormatException();
+                                }
+                            }
+                            else if (isFloat(v)) // GetType not woorking pa.. string iya return --d cya musudT.T[manomanosajud]
+                            {
+                                Console.WriteLine("Oh float");
+                                if (isFloat(values[i]))
+                                {
+                                    variableList[item] = Single.Parse(values[i]);
+                                    Console.WriteLine("item: " + variableList[item]);
+                                    Console.WriteLine("SUCCESS!");
+                                }
+                                else
+                                {
+                                    throw new FormatException();
+                                }
+                            }
+                            else if (isChar(v)) // GetType not working pa.. string iya pud:( [manomano nlang sa:D]
+                            {
+                                Console.WriteLine("Oh char");
+                                if (isChar(values[i]))
+                                {
+                                    variableList[item] = values[i];
+                                    Console.WriteLine("item: " + variableList[item]);
+                                    Console.WriteLine("SUCCESS!");
+                                }
+                                else
+                                {
+                                    throw new FormatException();
+                                }
+                            }
+                            else if (v.GetType() == typeof(bool))  //nigana...Iguess
+                            {
+                                Console.WriteLine("Oh bool");
+                                if (values[i] == "\"TRUE\"")
+                                    variableList[item] = true;
+                                else if (values[i] == "\"FALSE\"")
+                                    variableList[item] = false;
+                                else                                
+                                    throw new FormatException();
+                                
+                                //Console.WriteLine("item: " + variableList[item]);
+                                //Console.WriteLine("SUCCESS!");
+
+                            }
+                            i++;
+                            
+                        }
+                        else
+                        {
+                            throw new NullReferenceException();
+                        }
+                    }
+
+                }
+            }
+            catch (Exception e)
+            {
+                output = e.Message;
+            }
+
+            return output;
+        }
+
+        
     }
+
 }
