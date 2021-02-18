@@ -181,7 +181,7 @@ namespace Interpreter
                     }
                     else
                     {
-                        throw new NullReferenceException();
+                        throw new Exception();
                     }
                 }
 
@@ -267,12 +267,11 @@ namespace Interpreter
                 }
 
                 variableList[variableName] = total;
-
                 return output;
+
             } catch (Exception e)
             {
                 variableList.Remove(variableList.Keys.Last());
-
                 return output = e.Message;
             }
         }
