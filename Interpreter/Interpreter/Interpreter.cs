@@ -211,7 +211,7 @@ namespace Interpreter
                                 else
                                     throw new FormatException();
                             }
-                            else { v = value[n]; }
+                            else { v = value[n][1]; }
                                
                         }
 

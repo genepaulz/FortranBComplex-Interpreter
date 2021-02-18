@@ -13,7 +13,7 @@ namespace Interpreter
         static void Main(string[] args)
         {
             Interpreter interpreter = new Interpreter();
-            string time = DateTime.Now.ToString("h:mm:ss tt");
+            string time = "Time start " + DateTime.Now.ToString("h:mm:ss tt");
             Console.WriteLine(time);
 
             while (true)
@@ -23,7 +23,7 @@ namespace Interpreter
                 Console.WriteLine(output);
             }
 
-            time = DateTime.Now.ToString("h:mm:ss tt");
+            time = "Time ended " + DateTime.Now.ToString("h:mm:ss tt");
             Console.WriteLine(time);
             Console.ReadLine();
         }
