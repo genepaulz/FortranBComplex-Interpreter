@@ -30,8 +30,11 @@ namespace Interpreter
 
             var patterns = new[] {
                 new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
+                new {ID = "Assignment", Pattern = @"[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*"},
+                new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
                 new {ID = "Start", Pattern = @"^START$"},
                 new {ID = "Stop", Pattern = @"^STOP$"},
+                new {ID = "Comment", Pattern = @"^\*.*"}
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -70,12 +73,15 @@ namespace Interpreter
                     {
                         switch (pattern.Key)
                         {
-                            case "Declaration":
-                                output = Declaration(line);
-                                break;
+                            case "Declaration": output = Declaration(line); break;
+                            case "Assignment":  output = Assignment(line);break;
+                            case "Input":       output = Input(line); break;
 
                             case "Start":
-                                hasStarted = true;
+                                if (!hasStarted)
+                                    hasStarted = true;
+                                else
+                                    throw new Exception();
                                 break;
 
                             case "Stop":
@@ -131,6 +137,7 @@ namespace Interpreter
                         }
                         else
                         {
+                            variableList.Remove(variableName);
                             throw new Exception(); // VARIABLE ALREADY DECLARED
                         }
                     }
@@ -149,7 +156,7 @@ namespace Interpreter
             return output;
         }
 
-        public string Assignment(string line, string variableType, string variableName)
+        public string Assignment(string line, string variableType = "", string variableName = "")
         {
             string output = "";
 
@@ -158,12 +165,29 @@ namespace Interpreter
             string operators_p  = @"[*+/-]";
 
             string[] sets = Regex.Split(line, ",");
-
-            var v = dataTypes[variableType];
-            var total = dataTypes[variableType];
-
+            
             try
             {
+                if (variableName == "" && variableType == "")
+                {
+                    variableName = Regex.Match(line, variables_p).Value;
+
+                    if (isVariableReal(variableName))
+                    {
+                        if (isInt(variableList[variableName])) variableType = "INT";
+                        else if (isFloat(variableList[variableName])) variableType = "FLOAT";
+                        else if (isBool(variableList[variableName])) variableType = "BOOL";
+                        else variableType = "CHAR";
+                    }
+                    else
+                    {
+                        throw new NullReferenceException();
+                    }
+                }
+
+                var v = dataTypes[variableType];
+                var total = dataTypes[variableType];
+
                 foreach (string set in sets)
                 {
                     string variable = Regex.Match(set, variables_p).Value;
@@ -176,22 +200,139 @@ namespace Interpreter
                         .ToArray();
 
                     int pos = -1;
-
-                    if (v.GetType() == typeof(bool) | v.GetType() == typeof(char))
+                    
+                    if(value[0] != "")
                     {
-                        if (value.Length > 1) { throw new FormatException(); }
-                    }
-
-                    for (int n = 0; n < value.Length; n++)
-                    {
-                        string op = "";
-                        string val = value[n].Trim();
-
-                        if (isVariable(val))
+                        if (v.GetType() == typeof(bool) | v.GetType() == typeof(char))
                         {
-                            if (isVariableReal(val))
+                            if (value.Length > 1) { throw new FormatException(); }
+                        }
+
+                        foreach (string target in value)
+                        {
+                            string op = "";
+                            string val = target.Trim();
+
+                            if (isVariable(val))
                             {
-                                v = variableList[val];
+                                if (isVariableReal(val))
+                                {
+                                    v = variableList[val];
+                                }
+                                else
+                                {
+                                    throw new NullReferenceException();
+                                }
+                            }
+                            else
+                            {
+                                if (v.GetType() == typeof(int)) { v = Int32.Parse(target); }
+                                else if (v.GetType() == typeof(float)) { v = Single.Parse(target); }
+                                else if (v.GetType() == typeof(bool))
+                                {
+                                    if (target == "\"TRUE\"")
+                                        v = true;
+                                    else if (target == "\"FALSE\"")
+                                        v = false;
+                                    else
+                                        throw new FormatException();
+                                }
+                                else { if (target.Length > 0) v = target[1]; }
+                            }
+
+                            if (pos != -1)
+                            {
+                                op = oper[pos];
+
+                                switch (op)
+                                {
+                                    case "+":
+                                        total += v; break;
+                                    case "-":
+                                        total -= v; break;
+                                    case "/":
+                                        total /= v; break;
+                                    case "*":
+                                        total *= v; break;
+                                }
+                            }
+                            else
+                            {
+                                total = v;
+                            }
+
+                            pos++;
+                        }
+                    }
+                }
+
+                variableList[variableName] = total;
+
+                return output;
+            } catch (Exception e)
+            {
+                variableList.Remove(variableList.Keys.Last());
+
+                return output = e.Message;
+            }
+        }
+        public string Input(string line)
+        {
+            string output = "";
+            try
+            {
+                if (hasStarted)
+                {
+                    string[] variables = Regex.Matches(line, @"[^(INPUT:\,\s+)]\w*")
+                        .Cast<Match>()
+                        .Select(m => m.Value)
+                        .ToArray();
+
+                    int i = 0;
+
+                    foreach (string variable in variables)
+                    {
+                        if (isVariable(variable))
+                        {
+                            if (isVariableReal(variable))
+                            {
+                                var v = variableList[variable];
+                                var input = Console.ReadLine();
+
+                                if (isInt(v))
+                                {
+                                    v = Int32.Parse(input);
+                                }
+                                else if (isFloat(v))
+                                {
+                                    v = Single.Parse(input);
+                                }
+                                else if (isBool(v))
+                                {
+                                    input = Regex.Replace(input, @"\s+", "");
+                                    if (input == "TRUE")
+                                        v = true;
+                                    else if (input == "FALSE")
+                                        v = false;
+                                    else
+                                        throw new InvalidCastException();
+                                }
+                                else if (isChar(v))
+                                {
+                                    input = Regex.Replace(input, @"\s+", "");
+
+                                    if (Regex.Match(input, @"^\'\w\'$").Success)
+                                    {
+                                        v = input[1];
+                                    }
+                                    else
+                                    {
+                                        throw new FormatException();
+                                    }
+
+                                }
+
+                                variableList[variable] = v;
                             }
                             else
                             {
@@ -200,51 +341,19 @@ namespace Interpreter
                         }
                         else
                         {
-                            if (v.GetType() == typeof(int)) { v = Int32.Parse(value[n]); }
-                            else if (v.GetType() == typeof(float)) { v = Single.Parse(value[n]); }
-                            else if (v.GetType() == typeof(bool)) 
-                            {
-                                if (value[n] == "\"TRUE\"")
-                                    v = true;
-                                else if (value[n] == "\"FALSE\"")
-                                    v = false;
-                                else
-                                    throw new FormatException();
-                            }
-                            else { v = value[n][1]; }
-                               
+                            throw new FormatException();
                         }
-
-                        if (pos != -1)
-                        {
-                            op = oper[pos];
-
-                            switch (op)
-                            {
-                                case "+":
-                                    total += v; break;
-                                case "-":
-                                    total -= v; break;
-                                case "/":
-                                    total /= v; break;
-                                case "*":
-                                    total *= v; break;
-                            }
-                        }
-                        else
-                        {
-                            total = v;
-                        }
-
-                        pos++;
                     }
                 }
-            } catch (Exception e)
-            {
-                return output = e.Message;
+                else
+                {
+                    throw new Exception();
+                }
             }
-
-            variableList[variableName] = total;
+            catch (Exception e)
+            {
+                output = e.Message;
+            }
 
             return output;
         }
@@ -257,6 +366,23 @@ namespace Interpreter
         public bool isVariableReal(string name)
         {
             return (this.variableList.ContainsKey(name)) ? true : false;
+        }
+        public bool isInt(dynamic var)
+        {
+            return (var.GetType() == typeof(int)) ? true : false;
+        }
+        public bool isFloat(dynamic var)
+        {
+            return (var.GetType() == typeof(float)) ? true : false;
+        }
+        public bool isBool(dynamic var)
+        {
+            return (var.GetType() == typeof(bool)) ? true : false;
+        }
+
+        public bool isChar(dynamic var)
+        {
+            return (var.GetType() == typeof(char)) ? true : false;
         }
     }
 }
