@@ -289,62 +289,65 @@ namespace Interpreter
                         .Select(m => m.Value)
                         .ToArray();
 
-                    int i = 0;
-
-                    foreach (string variable in variables)
+                    if (areAllVariable(variables))
                     {
-                        if (isVariable(variable))
+                        if (areAllVariableReal(variables))
                         {
-                            if (isVariableReal(variable))
+                            var input = Console.ReadLine();
+                            string[] inputs = Regex.Matches(input, @"[^(\,\s +)][a-zA-Z_\.\'\-\u00220-9]*") // get muna kase the inputs
+                            .Cast<Match>()
+                            .Select(m => m.Value)
+                            .ToArray();
+                            int counter = 0;
+
+                            foreach (string variable in variables)
                             {
                                 var v = variableList[variable];
-                                var input = Console.ReadLine();
+                                var i = inputs[counter];
 
                                 if (isInt(v))
                                 {
-                                    v = Int32.Parse(input);
+                                    v = Int32.Parse(i);
                                 }
                                 else if (isFloat(v))
                                 {
-                                    v = Single.Parse(input);
+                                    v = Single.Parse(i);
                                 }
                                 else if (isBool(v))
                                 {
-                                    input = Regex.Replace(input, @"\s+", "");
-                                    if (input == "TRUE")
+
+                                    if (i == "TRUE")
                                         v = true;
-                                    else if (input == "FALSE")
+                                    else if (i == "FALSE")
                                         v = false;
                                     else
                                         throw new InvalidCastException();
                                 }
                                 else if (isChar(v))
                                 {
-                                    input = Regex.Replace(input, @"\s+", "");
-
-                                    if (Regex.Match(input, @"^\'\w\'$").Success)
+                                    if (Regex.Match(i, @"^\w$").Success)
                                     {
-                                        v = input[1];
+                                        v = i;
                                     }
                                     else
                                     {
                                         throw new FormatException();
                                     }
-
                                 }
-
                                 variableList[variable] = v;
-                            }
-                            else
-                            {
-                                throw new NullReferenceException();
+                                counter++;
                             }
                         }
                         else
                         {
-                            throw new FormatException();
+                            throw new NullReferenceException();
                         }
                     }
+                    else
+                    {
+                        throw new FormatException();
+                    }
+
                 }
                 else
                 {
@@ -358,6 +361,34 @@ namespace Interpreter
 
             return output;
         }
+        public bool areAllVariableReal(string[] variables)
+        {
+            bool flag = true;
+            foreach (string variable in variables)
+            {
+
+                if (!isVariableReal(variable))
+                {
+                    flag = false;
+                }
+
+            }
+            return flag;
+        }
+
+        public bool areAllVariable(string[] variables)
+        {
+            bool flag = true;
+            foreach (string variable in variables)
+            {
+                if (!isVariable(variable))
+                {
+                    flag = false;
+                }
+            }
+            return flag;
+        }
+
 
         public bool isVariable(string name)
         {
