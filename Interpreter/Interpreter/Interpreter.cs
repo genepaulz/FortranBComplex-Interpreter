@@ -29,7 +29,7 @@ namespace Interpreter
             this.dataTypes.Add("CHAR", ' ');
 
             var patterns = new[] {
-                new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*)))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
+                new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w')))(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w'))))))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
                 new {ID = "Assignment", Pattern = @"[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
                 new {ID = "Start", Pattern = @"^START$"},
@@ -74,8 +74,8 @@ namespace Interpreter
                         switch (pattern.Key)
                         {
                             case "Declaration": output = Declaration(line); break;
-                            case "Assignment":  output = Assignment(line);break;
-                            case "Input":       output = Input(line); break;
+                            case "Assignment": output = Assignment(line); break;
+                            case "Input": output = Input(line); break;
 
                             case "Start":
                                 if (!hasStarted)
@@ -97,9 +97,9 @@ namespace Interpreter
                 }
 
                 throw new Exception();
-                
-            } 
-            catch(Exception e)
+
+            }
+            catch (Exception e)
             {
                 return output = e.Message;
             }
@@ -147,11 +147,11 @@ namespace Interpreter
                     throw new Exception(); // START NA PROGRAM
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 output = e.Message;
             }
-            
+
 
             return output;
         }
@@ -160,12 +160,12 @@ namespace Interpreter
         {
             string output = "";
 
-            string variables_p  = @"^[a-zA-Z_][a-zA-z0-9_]*";
-            string values_p     = @"(?<=\b[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*).*";
-            string operators_p  = @"[*+/-]";
+            string variables_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            string values_p = @"(?<=\b[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*).*";
+            string operators_p = @"[*+/-]";
 
             string[] sets = Regex.Split(line, ",");
-            
+
             try
             {
                 if (variableName == "" && variableType == "")
@@ -200,8 +200,8 @@ namespace Interpreter
                         .ToArray();
 
                     int pos = -1;
-                    
-                    if(value[0] != "")
+
+                    if (value[0] != "")
                     {
                         if (v.GetType() == typeof(bool) | v.GetType() == typeof(char))
                         {
@@ -267,11 +267,13 @@ namespace Interpreter
                 }
 
                 variableList[variableName] = total;
-                return output;
 
-            } catch (Exception e)
+                return output;
+            }
+            catch (Exception e)
             {
                 variableList.Remove(variableList.Keys.Last());
+
                 return output = e.Message;
             }
         }
