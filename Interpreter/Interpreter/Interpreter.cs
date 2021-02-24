@@ -32,6 +32,7 @@ namespace Interpreter
                 new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w')))(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w'))))))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
                 new {ID = "Assignment", Pattern = @"[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
+                new {ID = "Output", Pattern = @"^OUTPUT\s*:\s.*$"},
                 new {ID = "Start", Pattern = @"^START$"},
                 new {ID = "Stop", Pattern = @"^STOP$"},
                 new {ID = "Comment", Pattern = @"^\*.*"}
@@ -76,6 +77,7 @@ namespace Interpreter
                             case "Declaration": output = Declaration(line); break;
                             case "Assignment": output = Assignment(line); break;
                             case "Input": output = Input(line); break;
+                            case "Output": output = Output(line); break;
 
                             case "Start":
                                 if (!hasStarted)
@@ -361,6 +363,79 @@ namespace Interpreter
 
             return output;
         }
+
+        public string Output(string line)
+        {
+            string output = "";
+            string outputString = "";
+            /*string de = "\nDebug\n";
+            string bug = "\nIDebug\n";*/
+            try
+            {
+                if (hasStarted)
+                {
+                    string[] inputs = Regex.Matches(line, @"[^(OUTPUT:)\s](\""(.*?)\"")|[^(OUTPUT:)\s](\S*)")
+                        .Cast<Match>()
+                        .Select(m => m.Value)
+                        .ToArray();
+                    foreach (string input in inputs)
+                    {
+                        //bug += input + "\n";
+                        if (isVariableReal(input))
+                        {
+                            outputString += "" + variableList[input] + "";
+                        }
+                        else if (input == "&")
+                        {
+                            continue;
+                        }
+                        else if (Regex.IsMatch(input, @"(\""(.*?)\"")|(\S*)"))
+                        {
+                            if (input.Contains("#"))
+                            {
+                                if (input.Contains("["))
+                                {
+                                    outputString += "" + input[2] + "";
+                                }
+                                else
+                                {
+                                    outputString += "\n";
+                                }
+                            }
+                            else if (input.Contains("["))
+                            {
+                                outputString += "" + input[2] + "";
+                            }
+                            else
+                            {
+                                outputString += "" + input + "";
+                            }
+                            //de += buffer + "\n";
+                        }
+                        else
+                        {
+                            throw new NullReferenceException();
+                        }
+
+                    }
+                    Console.WriteLine(outputString);
+                    /*Console.WriteLine(bug);
+                    Console.WriteLine(de);*/
+                    outputString = null;
+                }
+                else
+                {
+                    throw new Exception();
+                }
+            }
+            catch (Exception e)
+            {
+                output = e.Message;
+            }
+
+            return output;
+        }
+
         public bool areAllVariableReal(string[] variables)
         {
             bool flag = true;

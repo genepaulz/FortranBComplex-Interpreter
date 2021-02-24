@@ -17,7 +17,7 @@ namespace Interpreter
             Interpreter interpreter = new Interpreter();
             string time = "Time start " + DateTime.Now.ToString("h:mm:ss tt");
             Console.WriteLine(time);
-            bool readFile = false;
+            bool readFile = true;
             while (!readFile)
             {
                 if (interpreter.HasFinished) { break; }
@@ -28,18 +28,19 @@ namespace Interpreter
             if (readFile)
             {
                 //OPEN FILE TEST
-                StreamReader s1 = new StreamReader(@"C:\Users\Zafra\Desktop\VAR_test.txt");
+                StreamReader s1 = new StreamReader(@"C:\Users\Gene Paul Zafra\Desktop\test2.txt");
                 //StreamReader s2 = new StreamReader(@"C:\Users\Zafra\Desktop\PROG_test.txt");
                 string liner1 = s1.ReadLine();
                 //string liner2 = s2.ReadLine();
 
-                Thread.Sleep(2000);
+                //Thread.Sleep(2000);
                 while (readFile)
                 {
                     if (interpreter.HasFinished | liner1 == null) break;
+                    Console.WriteLine(liner1);
                     string output = interpreter.Interpret(liner1);
                     //string liner1 = interpreter.Interpret(liner2);
-                    Console.WriteLine(liner1);
+
                     //Console.WriteLine(liner2);
                     Console.WriteLine(output);
                     liner1 = s1.ReadLine();
