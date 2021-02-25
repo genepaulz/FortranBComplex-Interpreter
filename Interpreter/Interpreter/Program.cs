@@ -17,7 +17,7 @@ namespace Interpreter
             Interpreter interpreter = new Interpreter();
             string time = "Time start " + DateTime.Now.ToString("h:mm:ss tt");
             Console.WriteLine(time);
-            bool readFile = true;
+            bool readFile = false;
             while (!readFile)
             {
                 if (interpreter.HasFinished) { break; }
