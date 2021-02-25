@@ -368,8 +368,7 @@ namespace Interpreter
         {
             string output = "";
             string outputString = "";
-            /*string de = "\nDebug\n";
-            string bug = "\nIDebug\n";*/
+            //string bug = "\nIDebug\n";
             try
             {
                 if (hasStarted)
@@ -408,9 +407,12 @@ namespace Interpreter
                             }
                             else
                             {
-                                outputString += "" + input + "";
+                                string clean = Regex.Match(input, @"[^\""](.*)[^\""]").Value;
+                                if(clean[clean.Length-1]!='\"')
+                                outputString += "" + clean + " ";
+                                else
+                                    outputString += "" + clean + "";
                             }
-                            //de += buffer + "\n";
                         }
                         else
                         {
@@ -419,8 +421,7 @@ namespace Interpreter
 
                     }
                     Console.WriteLine(outputString);
-                    /*Console.WriteLine(bug);
-                    Console.WriteLine(de);*/
+                    //Console.WriteLine(bug);
                     outputString = null;
                 }
                 else
