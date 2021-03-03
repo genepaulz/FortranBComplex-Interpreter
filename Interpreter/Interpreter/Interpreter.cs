@@ -35,7 +35,8 @@ namespace Interpreter
                 new {ID = "Output", Pattern = @"^OUTPUT\s*:\s.*$"},
                 new {ID = "Start", Pattern = @"^START$"},
                 new {ID = "Stop", Pattern = @"^STOP$"},
-                new {ID = "Comment", Pattern = @"^\*.*"}
+                new {ID = "Comment", Pattern = @"^\*.*"},
+                new {ID = "Unary", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -78,6 +79,8 @@ namespace Interpreter
                             case "Assignment": output = Assignment(line); break;
                             case "Input": output = Input(line); break;
                             case "Output": output = Output(line); break;
+                            case "Comment": output = Comment(line);break;
+                            case "Unary": output = Unary(line); break;
 
                             case "Start":
                                 if (!hasStarted)
@@ -288,48 +291,42 @@ namespace Interpreter
                 {
                     string[] variables = Regex.Matches(line, @"[^(INPUT:\,\s+)]\w*")
                         .Cast<Match>()
-                        .Select(m => m.Value)
+                        .Select(m => m.Value)   
                         .ToArray();
 
-                    if (areAllVariable(variables))
+                    foreach (string variable in variables)
                     {
-                        if (areAllVariableReal(variables))
+                        if (isVariable(variable))
                         {
-                            var input = Console.ReadLine();
-                            string[] inputs = Regex.Matches(input, @"[^(\,\s +)][a-zA-Z_\.\'\-\u00220-9]*") // get muna kase the inputs
-                            .Cast<Match>()
-                            .Select(m => m.Value)
-                            .ToArray();
-                            int counter = 0;
-
-                            foreach (string variable in variables)
+                            if (isVariableReal(variable))
                             {
                                 var v = variableList[variable];
-                                var i = inputs[counter];
+
+                                var input = Console.ReadLine();
 
                                 if (isInt(v))
                                 {
-                                    v = Int32.Parse(i);
+                                    v = Int32.Parse(input);
                                 }
                                 else if (isFloat(v))
                                 {
-                                    v = Single.Parse(i);
+                                    v = Single.Parse(input);
                                 }
                                 else if (isBool(v))
                                 {
 
-                                    if (i == "TRUE")
+                                    if (input == "TRUE")
                                         v = true;
-                                    else if (i == "FALSE")
+                                    else if (input == "FALSE")
                                         v = false;
                                     else
                                         throw new InvalidCastException();
                                 }
                                 else if (isChar(v))
                                 {
-                                    if (Regex.Match(i, @"^\w$").Success)
+                                    if (Regex.Match(input, @"^\w$").Success)
                                     {
-                                        v = i;
+                                        v = input;
                                     }
                                     else
                                     {
@@ -337,17 +334,18 @@ namespace Interpreter
                                     }
                                 }
                                 variableList[variable] = v;
-                                counter++;
+                                Console.Write("" + variableList[variable]);
+                            }
+                            else
+                            {
+                                throw new NullReferenceException();
                             }
                         }
                         else
                         {
-                            throw new NullReferenceException();
+                            throw new FormatException();
                         }
-                    }
-                    else
-                    {
-                        throw new FormatException();
+
                     }
 
                 }
@@ -437,34 +435,91 @@ namespace Interpreter
             return output;
         }
 
-        public bool areAllVariableReal(string[] variables)
+        public string Comment(string line)
         {
-            bool flag = true;
-            foreach (string variable in variables)
+            string output = "";
+
+            try
+            {
+                if (hasStarted)
+                {
+                    if (Regex.Match(line, @"^\*.*").Success)
+                    {
+                        clearConsoleLine();
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("" + line);
+                        Console.ResetColor();
+                    }
+                }
+                else { throw new Exception(); }
+            }
+            catch (Exception e)
             {
 
-                if (!isVariableReal(variable))
+                output = e.Message;
+            }
+
+            return output;
+        }
+
+        public string Unary(string line)
+        {
+            string output = "";
+
+            string variable_p = @"[a-zA-Z_][a-zA-Z0-9_]*";
+            string action_p = @"(\+\+|--)";
+
+            try
+            {
+                if (hasStarted)
                 {
-                    flag = false;
+                    var variable = Regex.Match(line, variable_p).Value;
+                    var action = Regex.Match(line, action_p).Value;
+
+
+                    if (isVariable(variable))
+                    {
+                        if (isVariableReal(variable))
+                        {
+                            
+                            switch (action)
+                            {
+                                case "++":++variableList[variable]; break;
+                                case "--":--variableList[variable];break;
+                            }                          
+                            
+                        }
+                        else
+                        {
+                            throw new NullReferenceException();
+                        }
+                    }
+                    else
+                    {
+                        throw new FormatException();
+                    }
+
+                }
+                else
+                {
+                    throw new Exception();
                 }
 
             }
-            return flag;
-        }
-
-        public bool areAllVariable(string[] variables)
-        {
-            bool flag = true;
-            foreach (string variable in variables)
+            catch (Exception e)
             {
-                if (!isVariable(variable))
-                {
-                    flag = false;
-                }
+                output = e.Message;
             }
-            return flag;
-        }
 
+            return output;
+        }
+        public void clearConsoleLine()
+        {
+            int currentLine = Console.CursorTop - 1;
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, currentLine);
+        }
 
         public bool isVariable(string name)
         {
