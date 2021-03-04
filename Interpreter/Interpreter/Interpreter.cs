@@ -15,6 +15,8 @@ namespace Interpreter
         Dictionary<string, dynamic> dataTypes;
         Dictionary<string, string> patterns;
 
+        List<string> reserved;
+
         bool hasStarted = false;
         bool hasFinished = false;
 
@@ -24,13 +26,13 @@ namespace Interpreter
             this.dataTypes = new Dictionary<string, dynamic>(4);
 
             this.dataTypes.Add("INT", 0);
-            this.dataTypes.Add("FLOAT", 0.00);
+            this.dataTypes.Add("FLOAT", 0.0f);
             this.dataTypes.Add("BOOL", false);
             this.dataTypes.Add("CHAR", ' ');
 
             var patterns = new[] {
-                new {ID = "Declaration" , Pattern = @"(\bVAR)\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w')))(\s*,\s*(([a-zA-Z_][a-zA-Z0-9_]*|([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*.\d*))|("".+"")|('\w'))))))*\s+(AS (INT|FLOAT|BOOL|CHAR)\b)"},
-                new {ID = "Assignment", Pattern = @"[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w'))(\s*[+-/*]\s*(([a-zA-Z_][a-zA-Z0-9_]*)|((-?\d*)|(-?\d*\.\d*))|('\w')))*"},
+                new {ID = "Declaration" , Pattern = @"^\s*VAR\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)""))(\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)"")))*\s+AS\s+(INT|FLOAT|BOOL|CHAR)\s*$"},
+                new {ID = "Assignment", Pattern = @"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
                 new {ID = "Output", Pattern = @"^OUTPUT\s*:\s.*$"},
                 new {ID = "Start", Pattern = @"^START$"},
@@ -41,6 +43,19 @@ namespace Interpreter
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
 
+            var reserved = new[]
+            {
+                "VAR",
+                "AS",
+                "INT",
+                "FLOAT",
+                "BOOL",
+                "CHAR",
+                "START",
+                "STOP"
+            };
+
+            this.reserved = new List<string>(reserved);
         }
         public Dictionary<string, object> Variables
         {
@@ -165,9 +180,7 @@ namespace Interpreter
         {
             string output = "";
 
-            string variables_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
-            string values_p = @"(?<=\b[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*).*";
-            string operators_p = @"[*+/-]";
+            string variable_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
 
             string[] sets = Regex.Split(line, ",");
 
@@ -175,7 +188,7 @@ namespace Interpreter
             {
                 if (variableName == "" && variableType == "")
                 {
-                    variableName = Regex.Match(line, variables_p).Value;
+                    variableName = Regex.Match(line, variable_p).Value;
 
                     if (isVariableReal(variableName))
                     {
@@ -191,87 +204,42 @@ namespace Interpreter
                 }
 
                 var v = dataTypes[variableType];
-                var total = dataTypes[variableType];
 
                 foreach (string set in sets)
                 {
-                    string variable = Regex.Match(set, variables_p).Value;
 
-                    string values = Regex.Match(set, values_p).Value;
-                    string[] value = Regex.Split(values, operators_p);
-                    string[] oper = Regex.Matches(values, operators_p)
-                        .Cast<Match>()
-                        .Select(m => m.Value)
-                        .ToArray();
+                    string[] trimmed = Regex.Split(set, "=");
 
-                    int pos = -1;
-
-                    if (value[0] != "")
+                    if(trimmed.Length == 2)
                     {
-                        if (v.GetType() == typeof(bool) | v.GetType() == typeof(char))
+                        string variable = trimmed[0].Trim();
+                        string expression = trimmed[1].Trim();
+
+                        if (variableType == "INT" | variableType == "FLOAT")
                         {
-                            if (value.Length > 1) { throw new FormatException(); }
+                            string[] post = Postfix.ToPostFix(expression);
+
+                            if (post != null)
+                            {
+                                v = Postfix.QuickMath(post, this);
+                            }
+
                         }
-
-                        foreach (string target in value)
+                        if (variableType == "BOOL")
                         {
-                            string op = "";
-                            string val = target.Trim();
-
-                            if (isVariable(val))
-                            {
-                                if (isVariableReal(val))
-                                {
-                                    v = variableList[val];
-                                }
-                                else
-                                {
-                                    throw new NullReferenceException();
-                                }
-                            }
-                            else
-                            {
-                                if (v.GetType() == typeof(int)) { v = Int32.Parse(target); }
-                                else if (v.GetType() == typeof(float)) { v = Single.Parse(target); }
-                                else if (v.GetType() == typeof(bool))
-                                {
-                                    if (target == "\"TRUE\"")
-                                        v = true;
-                                    else if (target == "\"FALSE\"")
-                                        v = false;
-                                    else
-                                        throw new FormatException();
-                                }
-                                else { if (target.Length > 0) v = target[1]; }
-                            }
-
-                            if (pos != -1)
-                            {
-                                op = oper[pos];
-
-                                switch (op)
-                                {
-                                    case "+":
-                                        total += v; break;
-                                    case "-":
-                                        total -= v; break;
-                                    case "/":
-                                        total /= v; break;
-                                    case "*":
-                                        total *= v; break;
-                                }
-                            }
-                            else
-                            {
-                                total = v;
-                            }
-
-                            pos++;
+                            if (expression == "\"TRUE\"") v = true;
+                            else if (expression == "\"FALSE\"") v = false;
+                            else throw new FormatException();
+                        }
+                        if (variableType == "CHAR")
+                        {
+                            if (expression.Length == 3) v = expression[1];
+                            else throw new FormatException();
                         }
                     }
                 }
 
-                variableList[variableName] = total;
+                variableList[variableName] = v;
 
                 return output;
             }
@@ -520,10 +488,13 @@ namespace Interpreter
             Console.Write(new string(' ', Console.WindowWidth));
             Console.SetCursorPosition(0, currentLine);
         }
-
+        public bool isReserved(string name)
+        {
+            return reserved.Contains(name);
+        }
         public bool isVariable(string name)
         {
-            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*").Success) ? true : false;
+            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*").Success) ? (isReserved(name))? false : true : false;
         }
 
         public bool isVariableReal(string name)
