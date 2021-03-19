@@ -93,15 +93,6 @@ namespace Interpreter
                         //int front = infixArray.IndexOf(infixArray.Skip(i + 1).FirstOrDefault(k => !char.IsWhiteSpace(k)));
                         int back = infixArray.IndexOf(infixArray.Reverse().Skip(infixArray.Length - i).FirstOrDefault(k => !char.IsWhiteSpace(k)));
 
-                        /*
-                        if (front != -1)
-                        {
-                            if ( "+/*-".Contains(infixArray[front]))
-                            {
-                                postfix.Push("0");
-                            }
-                        }
-                        */
                         if(c == '-')
                         {
                             if (back != -1)

@@ -39,6 +39,7 @@ namespace Interpreter
                 new {ID = "Stop", Pattern = @"^STOP$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
                 new {ID = "Unary", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
+                new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"}
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -96,7 +97,7 @@ namespace Interpreter
                             case "Output": output = Output(line); break;
                             case "Comment": output = Comment(line);break;
                             case "Unary": output = Unary(line); break;
-
+                            case "IF": output = IF(line); break;
                             case "Start":
                                 if (!hasStarted)
                                     hasStarted = true;
@@ -149,17 +150,24 @@ namespace Interpreter
 
                         string variableName = Regex.Match(temp, variables_p).Value;
 
-                        if (!variableList.ContainsKey(variableName))
+                        if (isVariable(variableName))
                         {
-                            variableList.Add(variableName, dataTypes[variableType]);
+                            if (!variableList.ContainsKey(variableName))
+                            {
+                                variableList.Add(variableName, dataTypes[variableType]);
 
-                            output = Assignment(temp, variableType, variableName);
-                        }
-                        else
+                                output = Assignment(temp, variableType, variableName);
+                            }
+                            else
+                            {
+                                variableList.Remove(variableName);
+                                throw new Exception(); // VARIABLE ALREADY DECLARED
+                            }
+                        } else
                         {
-                            variableList.Remove(variableName);
-                            throw new Exception(); // VARIABLE ALREADY DECLARED
+                            throw new Exception(); // INVALID VAR NAME
                         }
+                        
                     }
                 }
                 else
@@ -481,6 +489,192 @@ namespace Interpreter
 
             return output;
         }
+        public string IF(string line)
+        {
+            string output = "";
+            try
+            {
+                string exp_p = @"\(.*\)\s*$";
+                string expression = Regex.Match(line, exp_p).Value.Trim();
+
+                bool? run = IsTrue(expression);
+
+                if(run == null) { throw new InvalidOperationException(); }
+
+                string l = "";
+
+                Interpreter temp = new Interpreter();
+                temp.Patterns.Remove("Declaration");
+                temp.Variables = this.variableList;
+
+                do
+                {
+                    if (temp.HasFinished) { break; }
+                    l = Console.ReadLine();
+                    string result = temp.Interpret(l);
+                    Console.WriteLine(result);
+                }
+                while (true);
+
+                if(run == true)
+                {
+                    this.Variables = temp.Variables;
+                }
+            }
+            catch(Exception e)
+            {
+                output = e.Message;
+            }
+            return output;
+        }
+        public bool? IsTrue(string line)
+        {
+            bool? output = true;
+
+            var stack = new Stack<string>();
+            var postfix = new Stack<string>();
+
+            string word = "";
+            bool beenSpace = false;
+
+            try
+            {
+                string exp = line.Replace(" ", "");
+                exp = exp.Replace(" ", "");
+                exp = exp.Replace("AND", "&");
+                exp = exp.Replace("OR", "|");
+                exp = exp.Replace("NOT", "!");
+
+                string pattern = @"(\&|\||\!)|([\(\)])|([\(\)])|([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)|(\<\>)|(\>\=)|(\<\=)|(\=\=)|([\<\>\=])";
+
+                string[] l = Regex.Split(exp, pattern);
+
+                for (int i = 0; i < l.Length; i++)
+                {
+                    string s = l[i];
+
+                    if (l[i] == "") continue;
+                    if (isVariable(s))
+                    {
+                        if (isVariableReal(s))
+                        {
+                            postfix.Push(s);
+                        }
+                    }
+                    else if (s == "(")
+                    {
+                        stack.Push(s);
+                    }
+                    else if (s == ")")
+                    {
+                        while (stack.Peek() != "(")
+                        {
+                            postfix.Push(stack.Pop().ToString());
+                        }
+                        stack.Pop();
+                    }
+                    else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
+                    {
+                        while (stack.Count != 0 && stack.Peek() != "(" && Priority(stack.Peek()) >= Priority(s))
+                        {
+                            postfix.Push(stack.Pop().ToString());
+                        }
+                        stack.Push(s);
+                    } 
+                    else if(Regex.Match(s, @"^(-?\d+|-?\d+.\d+)$").Success)
+                    {
+                        postfix.Push(s);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+
+                while (stack.Count != 0)
+                {
+                    if (stack.Peek() == "(")
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    else
+                    {
+                        postfix.Push(stack.Pop().ToString());
+                    }
+                }
+
+                string[] pf = postfix.Reverse().ToArray();
+
+                var temp = new Stack<dynamic>();
+                for(int i = 0; i < pf.Length; i++)
+                {
+                    string s = pf[i];
+                    if (isVariable(s))
+                    {
+                        temp.Push(variableList[s]);
+                    }
+                    else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
+                    {
+                        var y = temp.Pop();
+                        var x = temp.Pop();
+
+                        if (x.GetType() == typeof(string))
+                            if(isDigit(x))
+                            x = Single.Parse(x);
+                        if (y.GetType() == typeof(string))
+                            if(isDigit(y))
+                            y = Single.Parse(y);
+
+                        bool flag = false;
+                        if (s == "&")
+                            flag = x & y;
+                        else if (s == "|")
+                            flag = x || y;
+                        else if (s == "<")
+                            flag = x < y;
+                        else if (s == ">")
+                            flag = x > y;
+                        else if (s == "<=")
+                            flag = x <= y;
+                        else if (s == ">=")
+                            flag = x >= y;
+                        else if (s == "<>")
+                            flag = x != y;
+                        else if (s == "==")
+                            flag = x == y;
+
+                        temp.Push(flag);
+                    }
+                    else if ("!".Contains(s))
+                    {
+                        var x = temp.Pop();
+                        temp.Push(!x);
+                    }
+                    else
+                    {
+                        var x = Single.Parse(s);
+                        temp.Push(s);
+                    }
+                }
+
+                output = temp.Pop();
+            }
+            catch (Exception e)
+            {
+                output = null;
+            }
+
+            return output;
+        }
+
+        static int Priority(string c)
+        {
+            int p = 1;
+            if (c == "!") p = -3;
+            if (c == "&" ) p = -2;
+            if (c == "|") p = -1;
+            return p;
+        }
         public void clearConsoleLine()
         {
             int currentLine = Console.CursorTop - 1;
@@ -496,7 +690,10 @@ namespace Interpreter
         {
             return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*").Success) ? (isReserved(name))? false : true : false;
         }
-
+        public bool isDigit(string name)
+        {
+            return Regex.Match(name, @"-?\d+|-?\d+.\d+").Success;
+        }
         public bool isVariableReal(string name)
         {
             return (this.variableList.ContainsKey(name)) ? true : false;
