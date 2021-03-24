@@ -357,51 +357,102 @@ namespace Interpreter
                     bool fromSubstring = false;
                     int count = 0;
 
-                    while (!processed)
+                    try
                     {
 
-                        for (int i = count; i < input.Length; count++, i++)
+                        while (!processed)
                         {
-                            if (isSubstring)
+
+                            for (int i = count; i < input.Length; count++, i++)
                             {
-                                if (input[i] == '\"')
+                                if (isSubstring)
                                 {
-                                    isSubstring = false;
-                                    fromSubstring = true;
-                                    break;
+                                    if (input[i] == '\"')
+                                    {
+                                        isSubstring = false;
+                                        fromSubstring = true;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        head += input[i];
+                                    }
                                 }
-                                else
+                                else if (input[i] == '\"')
                                 {
+                                    isSubstring = true;
+                                    fromSubstring = false;
+                                    continue;
+                                }
+                                else if (input[i] != ' ')
                                     head += input[i];
-                                }
+                                else break;
                             }
-                            else if (input[i] == '\"')
+
+                            if (isVariableReal(head))
                             {
-                                isSubstring = true;
-                                fromSubstring = false;
+                                outputString += "" + variableList[head] + "";
+                            }
+                            else if (head == "&")
+                            {
+                                count++;
+                                head = "";
                                 continue;
                             }
-                            else if (input[i] != ' ')
-                                head += input[i];
-                            else break;
-
-                        }
-
-                        if (isVariableReal(head))
-                        {
-                            outputString += "" + variableList[head] + "";
-                        }
-                        else if (head == "&")
-                        {
-                            count++;
-                            head = "";
-                            continue;
-                        }
-                        else if (fromSubstring)
-                        {
-                            if (head.Contains("#"))
+                            else if (fromSubstring)
                             {
-                                if (head.Contains("["))
+                                if (head.Contains("#"))
+                                {
+                                    if (head.Contains("["))
+                                    {
+                                        if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
+                                        {
+                                            throw new Exception("Invalid Escape Character!");
+                                        }
+                                        else if (head.IndexOf("]") == 1)
+                                        {
+                                            outputString += head[head.IndexOf("[") + 1];
+                                        }
+                                        else
+                                        {
+                                            bool opened = false;
+                                            bool closed = false;
+                                            for (int i = 0; i < head.Length; i++)
+                                            {
+                                                if (head[i] == '[' && opened == false)
+                                                {
+                                                    opened = true;
+                                                    continue;
+                                                }
+
+                                                if (head[i] == ']' && closed == false)
+                                                {
+                                                    closed = true;
+                                                    continue;
+                                                }
+
+                                                else if (head[i] == '[' && opened)
+                                                {
+                                                    outputString += head[i];
+                                                }
+
+                                                else if (head[i] == ']' && closed)
+                                                {
+                                                    outputString += head[i];
+                                                }
+                                                else
+                                                {
+                                                    outputString += head[i];
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        outputString += "\n";
+                                    }
+                                }
+                                else if (head.Contains("["))
                                 {
                                     if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
                                     {
@@ -445,75 +496,31 @@ namespace Interpreter
                                         }
                                     }
                                 }
-                                else
+                                else if (head != null)
                                 {
-                                    outputString += "\n";
+                                    outputString += head;
                                 }
                             }
-                            else if (head.Contains("["))
+                            else
                             {
-                                if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
-                                {
-                                    throw new Exception("Invalid Escape Character!");
-                                }
-                                else if (head.IndexOf("]") == 1)
-                                {
-                                    outputString += head[head.IndexOf("[") + 1];
-                                }
-                                else
-                                {
-                                    bool opened = false;
-                                    bool closed = false;
-                                    for (int i = 0; i < head.Length; i++)
-                                    {
-                                        if (head[i] == '[' && opened == false)
-                                        {
-                                            opened = true;
-                                            continue;
-                                        }
-
-                                        if (head[i] == ']' && closed == false)
-                                        {
-                                            closed = true;
-                                            continue;
-                                        }
-
-                                        else if (head[i] == '[' && opened)
-                                        {
-                                            outputString += head[i];
-                                        }
-
-                                        else if (head[i] == ']' && closed)
-                                        {
-                                            outputString += head[i];
-                                        }
-                                        else
-                                        {
-                                            outputString += head[i];
-                                        }
-                                    }
-                                }
+                                throw new NullReferenceException();
                             }
-                            else if (head != null)
+
+                            head = "";
+                            if (count == input.Length)
                             {
-                                outputString += head;
+                                processed = true;
                             }
+                            count++;
                         }
-                        else
-                        {
-                            throw new NullReferenceException();
-                        }
-
-                        head = "";
-                        if (count == input.Length)
-                        {
-                            processed = true;
-                        }
-                        count++;
+                        Console.WriteLine(outputString);
+                        //Console.WriteLine(bug);
+                        outputString = null;
                     }
-                    Console.WriteLine(outputString);
-                    //Console.WriteLine(bug);
-                    outputString = null;
+                    catch(Exception e)
+                    {
+                        throw e;
+                    }
                 }
                 else
                 {
