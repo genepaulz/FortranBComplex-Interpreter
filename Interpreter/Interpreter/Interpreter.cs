@@ -156,7 +156,7 @@ namespace Interpreter
                             {
                                 variableList.Add(variableName, dataTypes[variableType]);
 
-                                output = Assignment(temp, variableType, variableName);
+                                output = Assignment(temp, 1,variableType, variableName);
                             }
                             else
                             {
@@ -184,7 +184,7 @@ namespace Interpreter
             return output;
         }
 
-        public string Assignment(string line, string variableType = "", string variableName = "")
+        public string Assignment(string line,int del = 0,string variableType = "", string variableName = "")
         {
             string output = "";
 
@@ -255,6 +255,7 @@ namespace Interpreter
             }
             catch (Exception e)
             {
+                if(del == 1)
                 variableList.Remove(variableList.Keys.Last());
 
                 return output = e.Message;
