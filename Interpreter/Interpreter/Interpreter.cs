@@ -34,7 +34,7 @@ namespace Interpreter
                 new {ID = "Declaration" , Pattern = @"^\s*VAR\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)""))(\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)"")))*\s+AS\s+(INT|FLOAT|BOOL|CHAR)\s*$"},
                 new {ID = "Assignment", Pattern = @"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
-                new {ID = "Output", Pattern = @"^OUTPUT\s*:\s.*$"},
+                new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
                 new {ID = "Start", Pattern = @"^START$"},
                 new {ID = "Stop", Pattern = @"^STOP$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
@@ -350,45 +350,153 @@ namespace Interpreter
             {
                 if (hasStarted)
                 {
-                    string[] inputs = Regex.Matches(line, @"[^(OUTPUT:)\s](\""(.*?)\"")|[^(OUTPUT:)\s](\S*)")
-                        .Cast<Match>()
-                        .Select(m => m.Value)
-                        .ToArray();
-                    foreach (string input in inputs)
+                    string input = Regex.Match(line, @"[^OUTPUT\s*:].*").Value;
+                    string head = "";
+                    bool processed = false;
+                    bool isSubstring = false;
+                    bool fromSubstring = false;
+                    int count = 0;
+
+                    while (!processed)
                     {
-                        //bug += input + "\n";
-                        if (isVariableReal(input))
+
+                        for (int i = count; i < input.Length; count++, i++)
                         {
-                            outputString += "" + variableList[input] + "";
+                            if (isSubstring)
+                            {
+                                if (input[i] == '\"')
+                                {
+                                    isSubstring = false;
+                                    fromSubstring = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    head += input[i];
+                                }
+                            }
+                            else if (input[i] == '\"')
+                            {
+                                isSubstring = true;
+                                fromSubstring = false;
+                                continue;
+                            }
+                            else if (input[i] != ' ')
+                                head += input[i];
+                            else break;
+
                         }
-                        else if (input == "&")
+
+                        if (isVariableReal(head))
                         {
+                            outputString += "" + variableList[head] + "";
+                        }
+                        else if (head == "&")
+                        {
+                            count++;
+                            head = "";
                             continue;
                         }
-                        else if (Regex.IsMatch(input, @"(\""(.*?)\"")|(\S*)"))
+                        else if (fromSubstring)
                         {
-                            if (input.Contains("#"))
+                            if (head.Contains("#"))
                             {
-                                if (input.Contains("["))
+                                if (head.Contains("["))
                                 {
-                                    outputString += "" + input[2] + "";
+                                    if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
+                                    {
+                                        throw new Exception("Invalid Escape Character!");
+                                    }
+                                    else if (head.IndexOf("]") == 1)
+                                    {
+                                        outputString += head[head.IndexOf("[") + 1];
+                                    }
+                                    else
+                                    {
+                                        bool opened = false;
+                                        bool closed = false;
+                                        for (int i = 0; i < head.Length; i++)
+                                        {
+                                            if (head[i] == '[' && opened == false)
+                                            {
+                                                opened = true;
+                                                continue;
+                                            }
+
+                                            if (head[i] == ']' && closed == false)
+                                            {
+                                                closed = true;
+                                                continue;
+                                            }
+
+                                            else if (head[i] == '[' && opened)
+                                            {
+                                                outputString += head[i];
+                                            }
+
+                                            else if (head[i] == ']' && closed)
+                                            {
+                                                outputString += head[i];
+                                            }
+                                            else
+                                            {
+                                                outputString += head[i];
+                                            }
+                                        }
+                                    }
                                 }
                                 else
                                 {
                                     outputString += "\n";
                                 }
                             }
-                            else if (input.Contains("["))
+                            else if (head.Contains("["))
                             {
-                                outputString += "" + input[2] + "";
-                            }
-                            else
-                            {
-                                string clean = Regex.Match(input, @"[^\""](.*)[^\""]").Value;
-                                if(clean[clean.Length-1]!='\"')
-                                outputString += "" + clean + " ";
+                                if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
+                                {
+                                    throw new Exception("Invalid Escape Character!");
+                                }
+                                else if (head.IndexOf("]") == 1)
+                                {
+                                    outputString += head[head.IndexOf("[") + 1];
+                                }
                                 else
-                                    outputString += "" + clean + "";
+                                {
+                                    bool opened = false;
+                                    bool closed = false;
+                                    for (int i = 0; i < head.Length; i++)
+                                    {
+                                        if (head[i] == '[' && opened == false)
+                                        {
+                                            opened = true;
+                                            continue;
+                                        }
+
+                                        if (head[i] == ']' && closed == false)
+                                        {
+                                            closed = true;
+                                            continue;
+                                        }
+
+                                        else if (head[i] == '[' && opened)
+                                        {
+                                            outputString += head[i];
+                                        }
+
+                                        else if (head[i] == ']' && closed)
+                                        {
+                                            outputString += head[i];
+                                        }
+                                        else
+                                        {
+                                            outputString += head[i];
+                                        }
+                                    }
+                                }
+                            }
+                            else if (head != null)
+                            {
+                                outputString += head;
                             }
                         }
                         else
@@ -396,6 +504,12 @@ namespace Interpreter
                             throw new NullReferenceException();
                         }
 
+                        head = "";
+                        if (count == input.Length)
+                        {
+                            processed = true;
+                        }
+                        count++;
                     }
                     Console.WriteLine(outputString);
                     //Console.WriteLine(bug);
@@ -410,7 +524,6 @@ namespace Interpreter
             {
                 output = e.Message;
             }
-
             return output;
         }
 
