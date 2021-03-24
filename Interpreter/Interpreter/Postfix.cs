@@ -23,7 +23,7 @@ namespace Interpreter
                         value = (float) n.Variables[s];
                         stack.Push(value);
                     }
-                    if ("+/*-".Contains(s))
+                    else if ("+/*-".Contains(s))
                     {
                         float y = stack.Pop();
                         float x = stack.Pop();

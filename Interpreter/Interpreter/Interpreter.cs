@@ -212,7 +212,7 @@ namespace Interpreter
                 }
 
                 var v = dataTypes[variableType];
-
+                
                 foreach (string set in sets)
                 {
 
@@ -237,7 +237,9 @@ namespace Interpreter
                         {
                             if (expression == "\"TRUE\"") v = true;
                             else if (expression == "\"FALSE\"") v = false;
-                            else throw new FormatException();
+                            else v = IsTrue(expression);
+                            
+                            if(v == null) throw new FormatException();
                         }
                         if (variableType == "CHAR")
                         {
