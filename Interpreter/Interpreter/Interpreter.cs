@@ -449,7 +449,13 @@ namespace Interpreter
                                     }
                                     else
                                     {
-                                        outputString += "\n";
+                                        for(int i = 0; i< head.Length; i++)
+                                        {
+                                            if (head[i] != '#')
+                                                outputString += head[i];
+                                            else
+                                                outputString += "\n";
+                                        }
                                     }
                                 }
                                 else if (head.Contains("["))
@@ -629,7 +635,7 @@ namespace Interpreter
                 Interpreter temp = new Interpreter();
                 temp.Patterns.Remove("Declaration");
                 temp.Variables = this.variableList;
-
+                
                 do
                 {
                     if (temp.HasFinished) { break; }

@@ -28,7 +28,7 @@ namespace Interpreter
             if (readFile)
             {
                 //OPEN FILE TEST
-                StreamReader s1 = new StreamReader(@"C:\Users\Zafra\Desktop\test2.txt");
+                StreamReader s1 = new StreamReader(@"C:\Users\Zafra\Desktop\test.txt");
                 //StreamReader s2 = new StreamReader(@"C:\Users\Zafra\Desktop\PROG_test.txt");
                 string liner1 = s1.ReadLine();
                 //string liner2 = s2.ReadLine();
