@@ -19,6 +19,7 @@ namespace Interpreter
 
         bool hasStarted = false;
         bool hasFinished = false;
+        bool whileIf = false;
 
         public Interpreter()
         {
@@ -39,7 +40,8 @@ namespace Interpreter
                 new {ID = "Stop", Pattern = @"^STOP$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
                 new {ID = "Unary", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
-                new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"}
+                new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"},
+                new {ID = "While", Pattern = @"^\s*WHILE\s*\([\w\W]+\s*\)\s*$"},
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -98,6 +100,7 @@ namespace Interpreter
                             case "Comment": output = Comment(line);break;
                             case "Unary": output = Unary(line); break;
                             case "IF": output = IF(line); break;
+                            case "While": output = While(line); break;
                             case "Start":
                                 if (!hasStarted)
                                     hasStarted = true;
@@ -656,6 +659,151 @@ namespace Interpreter
             }
             return output;
         }
+
+        public string While(string line)
+        {
+            string output = "";
+            List<List<String>> program = new List<List<String>>();
+
+            try
+            {
+                string exp_p = @"\(.*\)\s*$";
+                string expression = Regex.Match(line, exp_p).Value.Trim();
+
+                bool? run = IsTrue(expression);
+
+                if (run == null) { throw new InvalidOperationException(); }
+
+                string l = "";
+
+                Interpreter temp = new Interpreter();
+                temp.Patterns.Remove("Declaration");
+                temp.Patterns.Remove("IF");
+                temp.Patterns.Remove("While");
+                temp.Variables = this.variableList;
+
+
+                do
+                {
+                    List<String> sub = new List<String>();
+                    l = Console.ReadLine();
+                    if (l == "STOP")
+                    {
+                        sub.Add(l);
+                        program.Add(sub);
+                        break;
+                    }
+                    else if (Regex.Match(l, @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success)
+                    {
+                        //Console.WriteLine("nisud ko here");
+                        if (whileIf == false)
+                        {
+                            whileIf = true;
+                            List<String> allIf_exp = helperIf(l);
+                            program.Add(allIf_exp);
+                        }
+                    }
+                    else if (Regex.Match(l, @"^\s*WHILE\s*\([\w\W]+\s*\)\s*$").Success)
+                    {
+                         //temp.Interpret(l);
+                        throw new Exception(); 
+                    }
+                    else
+                    {
+                        sub.Add(l);
+                        program.Add(sub);
+                    }
+
+                } while (true);
+
+                while ((bool)IsTrue(expression))
+                {
+                    if (program[0][0] != "START") { throw new Exception("Way start"); }
+                    foreach (var p in program)
+                    {
+                        if (Regex.Match(p[0], @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success) { executeIf(p, temp); continue; }
+
+                        string result = temp.Interpret(p[0]);
+                        Console.Write(result);
+
+                    }
+                    temp.hasStarted = false;
+                    temp.hasFinished = false;
+                    this.Variables = temp.Variables;
+                }
+
+
+            }
+            catch (Exception e)
+            {
+                output = e.Message;
+            }
+            return output;
+        }
+
+        public void executeIf(List<String> s, Interpreter temp)
+        {
+            try
+            {
+                string exp_p = @"\(.*\)\s*$";
+                string expression = Regex.Match(s[0], exp_p).Value.Trim();
+                var copys = s.GetRange(1, s.Count - 1);
+                bool? run = IsTrue(expression);
+
+                if (run == null) { throw new InvalidOperationException(); }
+                if (run == true)
+                {
+                    temp.hasStarted = false;
+                    temp.hasFinished = false;
+                    if (copys[0] != "START") { throw new Exception("ay way start"); }
+                    foreach (var a in copys)
+                    {
+                        string result = temp.Interpret(a);
+                        Console.Write(result);
+                    }
+                    this.Variables = temp.Variables;
+                }
+
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        public List<String> helperIf(dynamic l)
+        {
+
+            List<String> h = new List<string>();
+            h.Add(l);
+            var ll = "";
+            try
+            {
+                do
+                {
+                    if (ll == "STOP") { whileIf = false; break; }
+                    if (Regex.Match(ll, @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success)
+                    {
+                        if (whileIf == true)
+                        {
+                            throw new Exception("sorry dili pa pwede if inside if");
+                        }
+                    }
+                    ll = Console.ReadLine();
+                    h.Add(ll);
+                } while (true);
+
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+
+
+
+            return h;
+        }
+
         public bool? IsTrue(string line)
         {
             bool? output = true;
