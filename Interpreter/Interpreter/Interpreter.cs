@@ -212,79 +212,109 @@ namespace Interpreter
 
                     else
                     {
+                        if (hasFinished)
+                        {
+                            Success = false;
+                            break;
+                        }
+
                         string varName = statement[1];
-                        string varValue = statement[2];
 
 
                         if (function == "Declaration")
                         {
-                            if (!variableList.ContainsKey(varName))
-                            {
-                                Success = CreateVar(varName, statement[2]);
-                            }
-                            else Success = false;
-                        }
-                        else if (function == "Assignment")
-                        {
-                            Success = AssignVar(varName, varValue);
-                        }
-                        else if (function == "UnaryPlus" | function == "Unary")
-                        {
-                            int operType = 0;
-
-                            if (function == "UnaryPlus")
-                            {
-                                if (statement[2] == "--") operType = 1;
-                            }                                
-                            else
-                                if (statement[3] == "-") operType = 1;
-
-                            if (function == "UnaryPlus")
-                                Success = Increment(varName, operType);
-                            else
-                                Success = Positive(varName, operType);
-                        }
-                        else if (function == "IF_statement" | function == "ELSE" | function == "WHILE_statement")
-                        {
-                            string expression = varName;
-
-                            bool? run = IsTrue(expression);
-
-                            if (run == null)
+                            if (hasStarted | type == 1)
                             {
                                 Success = false;
                                 break;
                             }
 
-                            string SubId = varValue;
-                            
-                            if(function == "IF_statement")
+                            if (!variableList.ContainsKey(varName))
                             {
-                                if (run == false)
+                                Success = CreateVar(varName, statement[2],statement[3]);
+                            }
+                            else Success = false;
+                        }
+
+                        else
+                        {
+                            if (hasStarted)
+                            {
+                                if (function == "Input")
                                 {
-                                    if (progList[index + 1][0] == "ELSE")
+                                    string newVal = Console.ReadLine();
+                                    Success = AssignVar(varName, newVal);
+
+                                    continue;
+                                }
+
+                                string varValue = statement[2];
+
+                                if (function == "Assignment")
+                                {
+                                    Success = AssignVar(varName, varValue);
+                                }
+                                else if (function == "UnaryPlus" | function == "Unary")
+                                {
+                                    int operType = 0;
+
+                                    if (function == "UnaryPlus")
                                     {
-                                        index++;
-                                        SubId = progList[index][2];
-                                        Success = RunProg(1, SubId);
+                                        if (statement[2] == "--") operType = 1;
+                                    }
+                                    else
+                                        if (statement[3] == "-") operType = 1;
+
+                                    if (function == "UnaryPlus")
+                                        Success = Increment(varName, operType);
+                                    else
+                                        Success = Positive(varName, operType);
+                                }
+                                else if (function == "IF_statement" | function == "ELSE" | function == "WHILE_statement")
+                                {
+                                    string expression = varName;
+
+                                    bool? run = IsTrue(expression);
+
+                                    if (run == null)
+                                    {
+                                        Success = false;
+                                        break;
+                                    }
+
+                                    string SubId = varValue;
+
+                                    if (function == "IF_statement")
+                                    {
+                                        if (run == false)
+                                        {
+                                            if (progList[index + 1][0] == "ELSE")
+                                            {
+                                                index++;
+                                                SubId = progList[index][2];
+                                                Success = RunProg(1, SubId);
+                                            }
+                                        }
+                                        else Success = RunProg(1, SubId);
+                                    }
+                                    else if (function == "WHILE_statement")
+                                    {
+                                        if (run == true)
+                                        {
+                                            while (run == true)
+                                            {
+                                                Success = RunProg(1, SubId);
+
+                                                if (!Success) break;
+
+                                                run = IsTrue(expression);
+                                            }
+                                        }
                                     }
                                 }
-                                else Success = RunProg(1, SubId);
                             }
-                            else if(function == "WHILE_statement")
-                            {
-                                if (run == true)
-                                {
-                                    while (run == true)
-                                    {
-                                        Success = RunProg(1, SubId);
 
-                                        if (!Success) break;
-
-                                        run = IsTrue(expression);
-                                    }
-                                }
-                            }
+                            else Success = false; 
                         }
                     }
 
@@ -332,18 +362,21 @@ namespace Interpreter
             return true;
         }
 
-        public bool CreateVar(string varName, string varType)
+        public bool CreateVar(string varName, string varType, string val)
         {
             if (!isVariableReal(varName))
             {
                 try
                 {
                     variableList.Add(varName, dataTypes[varType]);
+                    if (!AssignVar(varName, val))
+                        return false;
                 }
                 catch(Exception e)
                 {
                     return false;
                 }
+
                 return true;
             }
 
@@ -436,8 +469,9 @@ namespace Interpreter
 
                 if (isVariable(variableName))
                 {
-                    codes.Add(new[] { "Declaration", variableName, variableType });
-                    codes.Add(CallMethod("Assignment", new[] { line }).ToArray()[0]);
+                    string[] temp = CallMethod("Assignment", new[] { line }).ToArray()[0];
+
+                    codes.Add(new[] { "Declaration", variableName, variableType, temp[2]});
                 }
                 else return null; // Invalid Variable Name
             }

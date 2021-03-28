@@ -25,7 +25,7 @@ namespace Interpreter
             }
 
 
-
+            Console.WriteLine("Done!");
             Console.ReadLine();
         }
 
