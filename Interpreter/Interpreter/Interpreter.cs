@@ -242,8 +242,16 @@ namespace Interpreter
                             {
                                 if (function == "Input")
                                 {
-                                    string newVal = Console.ReadLine();
-                                    Success = AssignVar(varName, newVal);
+                                    if (isVariableReal(varName))
+                                    {
+                                        string newVal = Console.ReadLine();
+                                        Success = AssignVar(varName, newVal);
+                                    }
+                                    else
+                                    {
+                                        Success = false;
+                                        break;
+                                    }
 
                                     continue;
                                 }
@@ -368,9 +376,13 @@ namespace Interpreter
             {
                 try
                 {
-                    variableList.Add(varName, dataTypes[varType]);
-                    if (!AssignVar(varName, val))
-                        return false;
+                    if (isVariable(varName))
+                    {
+                        variableList.Add(varName, dataTypes[varType]);
+                        if (!AssignVar(varName, val))
+                            return false;
+                    }
+                    else throw new Exception();
                 }
                 catch(Exception e)
                 {
@@ -421,15 +433,15 @@ namespace Interpreter
                         else Var = trimVal[1];
                     }
                 }
+
+
+                if (Success) variableList[varName] = Var;
             }
             catch(Exception e)
             {
                 Success = false;
             }
             
-
-            if (Success) variableList[varName] = Var;
-
             return Success;
         }
         public string GetVarType(string varName)
