@@ -42,18 +42,17 @@ namespace Interpreter
 
             var patterns = new[] {
                 new {ID = "Declaration" , Pattern = @"^\s*VAR\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)""))(\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)"")))*\s+AS\s+(INT|FLOAT|BOOL|CHAR)\s*$"},
-                new {ID = "Unary", Pattern = @"^[a-zA-Z_][a-zA-z0-9_]*\s*\=\s*(\-[a-zA-Z_][a-zA-z0-9_]*|\+[a-zA-Z_][a-zA-z0-9_]*)\s*$"},
+                new {ID = "Unary", Pattern = @"^[a-zA-Z_][a-zA-z0-9_]*\s*\=\s*((\+|\-)[a-zA-Z_][a-zA-z0-9_]*)"},
                 new {ID = "Assignment", Pattern = @"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
-               //new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
+                //new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
                 new {ID = "Start", Pattern = @"^\s*(START)\s*$"},
                 new {ID = "Stop", Pattern = @"^\s*(STOP)\s*$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
                 new {ID = "UnaryPlus", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
-                
-               new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"},
-               new {ID = "ELSE", Pattern = @"^\s*(ELSE)\s*$"},
-               new {ID = "WHILE", Pattern = @"^\s*(WHILE)\s*\([\w\W]+\s*\)\s*$"},
+                new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"},
+                new {ID = "ELSE", Pattern = @"^\s*(ELSE)\s*$"},
+                new {ID = "WHILE", Pattern = @"^\s*(WHILE)\s*\([\w\W]+\s*\)\s*$"},
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -233,9 +232,11 @@ namespace Interpreter
                             int operType = 0;
 
                             if (function == "UnaryPlus")
-                                if (statement[3] == "--") operType = 1;
-                                else
-                                if (statement[2] == "-") operType = 1;
+                            {
+                                if (statement[2] == "--") operType = 1;
+                            }                                
+                            else
+                                if (statement[3] == "-") operType = 1;
 
                             if (function == "UnaryPlus")
                                 Success = Increment(varName, operType);
@@ -276,6 +277,8 @@ namespace Interpreter
                                     while (run == true)
                                     {
                                         Success = RunProg(1, SubId);
+
+                                        if (!Success) break;
 
                                         run = IsTrue(expression);
                                     }
