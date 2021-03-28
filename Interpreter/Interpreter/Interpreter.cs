@@ -45,7 +45,7 @@ namespace Interpreter
                 new {ID = "Unary", Pattern = @"^[a-zA-Z_][a-zA-z0-9_]*\s*\=\s*((\+|\-)[a-zA-Z_][a-zA-z0-9_]*)"},
                 new {ID = "Assignment", Pattern = @"^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
-                //new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
+                new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
                 new {ID = "Start", Pattern = @"^\s*(START)\s*$"},
                 new {ID = "Stop", Pattern = @"^\s*(STOP)\s*$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
@@ -255,6 +255,13 @@ namespace Interpreter
 
                                     continue;
                                 }
+                                else if (function == "Output")
+                                {
+                                    string line = varName;
+                                    Success = Print(line);
+
+                                    continue;
+                                }
 
                                 string varValue = statement[2];
 
@@ -458,9 +465,276 @@ namespace Interpreter
             return varType;
         }
 
+        public bool Print(string statement)
+        {
+            string outputString = "";
+            string input = statement;
+            string head = "";
+            bool processed = false;
+            bool isSubstring = false;
+            bool fromSubstring = false;
+            int count = 0;
+
+            try
+            {
+                while (!processed)
+                {
+                    for (int i = count; i < input.Length; count++, i++)
+                    {
+                        if (isSubstring)
+                        {
+                            if (input[i] == '\"')
+                            {
+                                isSubstring = false;
+                                fromSubstring = true;
+                                break;
+                            }
+                            else
+                            {
+                                head += input[i];
+                            }
+                        }
+                        else if (input[i] == '\"')
+                        {
+                            isSubstring = true;
+                            fromSubstring = false;
+                            continue;
+                        }
+                        else if (input[i] != ' ')
+                            head += input[i];
+                        else break;
+                    }
+
+                    if (isVariableReal(head))
+                    {
+                        outputString += "" + variableList[head] + "";
+                    }
+                    else if (head == "&")
+                    {
+                        count++;
+                        head = "";
+                        continue;
+                    }
+                    else if (fromSubstring)
+                    {
+                        if (head.Contains("#"))
+                        {
+                            if (head.Contains("["))
+                            {
+                                if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
+                                {
+                                    throw new Exception("Invalid Escape Character!");
+                                }
+                                else if (head.IndexOf("]") == 1)
+                                {
+                                    outputString += head[head.IndexOf("[") + 1];
+                                }
+                                else
+                                {
+                                    bool opened = false;
+                                    bool closed = false;
+                                    for (int i = 0; i < head.Length; i++)
+                                    {
+                                        if (head[i] == '[' && opened == false)
+                                        {
+                                            opened = true;
+                                            continue;
+                                        }
+
+                                        if (head[i] == ']' && closed == false)
+                                        {
+                                            closed = true;
+                                            continue;
+                                        }
+
+                                        else if (head[i] == '[' && opened)
+                                        {
+                                            outputString += head[i];
+                                        }
+
+                                        else if (head[i] == ']' && closed)
+                                        {
+                                            outputString += head[i];
+                                        }
+                                        else
+                                        {
+                                            outputString += head[i];
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < head.Length; i++)
+                                {
+                                    if (head[i] != '#')
+                                        outputString += head[i];
+                                    else
+                                        outputString += "\n";
+                                }
+                            }
+                        }
+                        else if (head.Contains("["))
+                        {
+                            if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
+                            {
+                                throw new Exception("Invalid Escape Character!");
+                            }
+                            else if (head.IndexOf("]") == 1)
+                            {
+                                outputString += head[head.IndexOf("[") + 1];
+                            }
+                            else
+                            {
+                                bool opened = false;
+                                bool closed = false;
+                                for (int i = 0; i < head.Length; i++)
+                                {
+                                    if (head[i] == '[' && opened == false)
+                                    {
+                                        opened = true;
+                                        continue;
+                                    }
+
+                                    if (head[i] == ']' && closed == false)
+                                    {
+                                        closed = true;
+                                        continue;
+                                    }
+
+                                    else if (head[i] == '[' && opened)
+                                    {
+                                        outputString += head[i];
+                                    }
+
+                                    else if (head[i] == ']' && closed)
+                                    {
+                                        outputString += head[i];
+                                    }
+                                    else
+                                    {
+                                        outputString += head[i];
+                                    }
+                                }
+                            }
+                        }
+                        else if (head != null)
+                        {
+                            outputString += head;
+                        }
+                    }
+                    else
+                    {
+                        throw new NullReferenceException();
+                    }
+
+                    head = "";
+                    if (count == input.Length)
+                    {
+                        processed = true;
+                    }
+                    count++;
+                }
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+
+
+            Console.WriteLine(outputString);
+            return true;
+        }
 
         // FUNCTIONS --------------------
 
+
+        public bool isBalanced(string input) //Works for Output function only
+        {
+            bool balanced = false;
+            Stack stuck = new Stack();
+            for (int i = 0; i < input.Length; i++)
+            {
+                if (input[i] == '\"')
+                {
+                    if (stuck.Count != 0)
+                    {
+                        if ((char)stuck.Peek() == '\"')
+                        {
+                            stuck.Pop();
+                        }
+                    }
+                    else
+                    {
+                        stuck.Push(input[i]);
+                    }
+                }
+                else if (input[i] == '[')
+                {
+                    if (stuck.Count != 0)
+                    {
+                        if ((char)stuck.Peek() == '[') continue;
+                    }
+                    else
+                    {
+                        stuck.Push(input[i]);
+                    }
+                    try
+                    {
+                        if (input[i + 2] != ']')
+                        {
+                            throw new Exception("Invalid Escape Sequence");
+                        }
+                    }
+                    catch (Exception d)
+                    {
+
+                    }
+
+                }
+                else if (input[i] == ']')
+                {
+                    if (stuck.Count != 0)
+                    {
+                        if ((char)stuck.Peek() == '[')
+                        {
+                            stuck.Pop();
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("Invalid Escape Sequence");
+                    }
+                    try
+                    {
+                        if (input[i - 2] != '[')
+                        {
+                            throw new Exception("Invalid Escape Sequence");
+                        }
+                    }
+                    catch (Exception d)
+                    {
+
+                    }
+                }
+            }
+            if (stuck.Count == 0) balanced = true;
+            return balanced;
+        }
+        public List<string[]> Output(string statement)
+        {
+            string line = Regex.Match(statement, @"[^(OUTPUT:\,\s+)][\w\W]*").Value;
+
+            try
+            {
+                if (isBalanced(line)) return new List<string[]>() { new[] { "Output", line } };
+                else return null;
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+        }
         public List<string[]> Declaration(string statement)
         {
             string value    = @"(?<=\bVAR\s+).*(?=AS\s*(INT|FLOAT|BOOL|CHAR))";
