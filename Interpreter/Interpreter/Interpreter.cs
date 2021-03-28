@@ -203,9 +203,10 @@ namespace Interpreter
                         else hasStarted = true;
                     else if (function == "Stop")
                     {
-                        if (hasStarted)
-                            hasFinished = true;
-                        break;
+                        if (hasStarted && !hasFinished) hasFinished = true;
+                        else Success = false;
+
+                        if(type == 1) break;
                     }
                     else if (function == "Comment") continue;
 
@@ -295,9 +296,9 @@ namespace Interpreter
             {
                 Success = false;
             }
-            
 
 
+            if (!hasFinished) Success = false;
 
             return Success;
         }
