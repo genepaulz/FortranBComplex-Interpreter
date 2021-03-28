@@ -15,42 +15,17 @@ namespace Interpreter
         static void Main(string[] args)
         {
             Interpreter interpreter = new Interpreter();
-            string time = "Time start " + DateTime.Now.ToString("h:mm:ss tt");
-            Console.WriteLine(time);
-            bool readFile = false;
-            while (!readFile)
-            {
-                if (interpreter.HasFinished) { break; }
-                string output = interpreter.Interpret(Console.ReadLine());
-                Console.WriteLine(output);
-            }
+            bool readFile = true;
 
             if (readFile)
             {
-                //OPEN FILE TEST
-                StreamReader s1 = new StreamReader(@"C:\Users\Zafra\Desktop\test.txt");
-                //StreamReader s2 = new StreamReader(@"C:\Users\Zafra\Desktop\PROG_test.txt");
-                string liner1 = s1.ReadLine();
-                //string liner2 = s2.ReadLine();
+                string[] lines = File.ReadAllLines(@"C:\Users\seank\Desktop\test.txt");
 
-                //Thread.Sleep(2000);
-                while (readFile)
-                {
-                    if (interpreter.HasFinished | liner1 == null) break;
-                    Console.WriteLine(liner1);
-                    string output = interpreter.Interpret(liner1);
-                    //string liner1 = interpreter.Interpret(liner2);
-
-                    //Console.WriteLine(liner2);
-                    Console.WriteLine(output);
-                    liner1 = s1.ReadLine();
-                }
-                s1.Close();
-                //s2.Close();
+                interpreter.PreRead(lines);
             }
 
-            time = "Time ended " + DateTime.Now.ToString("h:mm:ss tt");
-            Console.WriteLine(time);
+
+
             Console.ReadLine();
         }
 

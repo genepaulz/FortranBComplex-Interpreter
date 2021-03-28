@@ -11,6 +11,8 @@ namespace Interpreter
 {
     class Interpreter
     {
+        Guid guid = Guid.NewGuid();
+
         Dictionary<string, dynamic> variableList;
         Dictionary<string, dynamic> dataTypes;
         Dictionary<string, string> patterns;
@@ -21,6 +23,13 @@ namespace Interpreter
         bool hasFinished = false;
         bool whileIf = false;
 
+
+        List<string[]> Program = new List<string[]>();
+        List<string[]> Outputs = new List<string[]>();
+        Dictionary<string, List<string[]>> subProgram = new Dictionary<string, List<string[]>>();
+
+
+        // CONSTRUCTOR --------------------
         public Interpreter()
         {
             this.variableList = new Dictionary<string, dynamic>();
@@ -33,15 +42,18 @@ namespace Interpreter
 
             var patterns = new[] {
                 new {ID = "Declaration" , Pattern = @"^\s*VAR\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)""))(\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)"")))*\s+AS\s+(INT|FLOAT|BOOL|CHAR)\s*$"},
+                new {ID = "Unary", Pattern = @"^[a-zA-Z_][a-zA-z0-9_]*\s*\=\s*(\-[a-zA-Z_][a-zA-z0-9_]*|\+[a-zA-Z_][a-zA-z0-9_]*)\s*$"},
                 new {ID = "Assignment", Pattern = @"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
-                new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
-                new {ID = "Start", Pattern = @"^START$"},
-                new {ID = "Stop", Pattern = @"^STOP$"},
+               //new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
+                new {ID = "Start", Pattern = @"^\s*(START)\s*$"},
+                new {ID = "Stop", Pattern = @"^\s*(STOP)\s*$"},
                 new {ID = "Comment", Pattern = @"^\*.*"},
-                new {ID = "Unary", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
-                new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"},
-                new {ID = "While", Pattern = @"^\s*WHILE\s*\([\w\W]+\s*\)\s*$"},
+                new {ID = "UnaryPlus", Pattern = @"^(([a-zA-Z_][a-zA-Z0-9_]*(\+\+|\-\-))|((\+\+|\-\-|!)[a-zA-Z_][a-zA-Z0-9_]*)|(~([a-zA-Z_][a-zA-Z0-9_]*|\d+)))"},
+                
+               new {ID = "IF", Pattern = @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$"},
+               new {ID = "ELSE", Pattern = @"^\s*(ELSE)\s*$"},
+               new {ID = "WHILE", Pattern = @"^\s*(WHILE)\s*\([\w\W]+\s*\)\s*$"},
             };
 
             this.patterns = patterns.ToDictionary(n => n.ID, n => n.Pattern);
@@ -55,835 +67,719 @@ namespace Interpreter
                 "BOOL",
                 "CHAR",
                 "START",
-                "STOP"
+                "STOP",
+                "IF",
+                "WHILE",
+                "ELSE"
             };
 
             this.reserved = new List<string>(reserved);
         }
-        public Dictionary<string, object> Variables
-        {
-            get { return variableList; }
-            set { variableList = value; }
-        }
 
-        public Dictionary<string, string> Patterns
-        {
-            get { return patterns; }
-        }
-        public bool HasStarted
-        {
-            get { return hasStarted; }
-        }
-        public bool HasFinished
-        {
-            get { return hasFinished; }
-        }
 
-        public string Interpret(string line)
-        {
-            string output = "";
 
-            try
+        // PRE-READERS
+
+        public void PreRead(string[] program, int start = 0)
+        {
+            for (int line = start; line < program.Length; line++)
             {
-                foreach (KeyValuePair<string, string> pattern in patterns)
+                string statement = program[line].Trim();
+
+                if (statement == "") continue; // Empty Line
+
+                string pattern = Pattern(statement);
+                if (pattern == null)
                 {
-                    Match match = Regex.Match(line, pattern.Value);
-
-                    if (match.Success)
-                    {
-                        switch (pattern.Key)
-                        {
-                            case "Declaration": output = Declaration(line); break;
-                            case "Assignment": output = Assignment(line); break;
-                            case "Input": output = Input(line); break;
-                            case "Output": output = Output(line); break;
-                            case "Comment": output = Comment(line);break;
-                            case "Unary": output = Unary(line); break;
-                            case "IF": output = IF(line); break;
-                            case "While": output = While(line); break;
-                            case "Start":
-                                if (!hasStarted)
-                                    hasStarted = true;
-                                else
-                                    throw new Exception();
-                                break;
-
-                            case "Stop":
-                                if (hasStarted)
-                                    hasFinished = true;
-                                else
-                                    throw new Exception();
-                                break;
-                        }
-
-                        return output;
-                    }
+                    Program = null; // Syntax Error
+                    break;
                 }
 
-                throw new Exception();
+                if (pattern == "Start") Program.Add(new[] { "Start" });
+                else if (pattern == "Stop") Program.Add(new[] { "Stop" });
 
-            }
-            catch (Exception e)
-            {
-                return output = e.Message;
-            }
-        }
-
-
-        public string Declaration(string line)
-        {
-            string output = "";
-
-            try
-            {
-                if (!hasStarted)
-                {
-                    string trimmer_p = @"(?<=\bVAR\s+).*(?=AS\s*(INT|FLOAT|BOOL|CHAR))";
-                    string variables_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
-                    string variablesType_p = @"\b(INT|FLOAT|BOOL|CHAR)\b";
-
-                    string trimmed = Regex.Match(line, trimmer_p).Value;
-                    string[] sets = Regex.Split(trimmed, ",");
-
-                    string variableType = Regex.Match(line, variablesType_p).Value;
-
-                    foreach (string set in sets)
-                    {
-                        string temp = set.Trim();
-
-                        string variableName = Regex.Match(temp, variables_p).Value;
-
-                        if (isVariable(variableName))
-                        {
-                            if (!variableList.ContainsKey(variableName))
-                            {
-                                variableList.Add(variableName, dataTypes[variableType]);
-
-                                output = Assignment(temp, 1,variableType, variableName);
-                            }
-                            else
-                            {
-                                variableList.Remove(variableName);
-                                throw new Exception(); // VARIABLE ALREADY DECLARED
-                            }
-                        } else
-                        {
-                            throw new Exception(); // INVALID VAR NAME
-                        }
-                        
-                    }
-                }
                 else
                 {
-                    throw new Exception(); // START NA PROGRAM
+                    List<string[]> code = null;
+
+                    int starting = line + 1;
+                    int last = starting;
+
+                    if (pattern == "IF" | pattern == "WHILE")
+                    {
+                        int type = 0; // 0 = IF, 1 = ELSE, 2 = WHILE
+
+                        if (pattern == "WHILE") type = 2;
+
+                        code = IF(program, starting, ref last, type);
+                        line = last;
+
+                        if (type == 0)
+                        {
+                            int foundElse = findElse(program, last);
+
+                            if (foundElse > -1)
+                            {
+                                List<string[]> elseCode = null;
+
+                                elseCode = IF(program, foundElse, ref last, 1);
+
+                                if (elseCode == null)
+                                {
+                                    Program = null;
+                                    break;
+                                }
+
+                                code.AddRange(elseCode);
+                                line = last;
+                            }
+                        }
+                    }
+                    else if (pattern != "Start" && pattern != "Stop")
+                    {
+                        if (pattern == "ELSE")
+                        {
+                            Program = null;
+                            break;
+                        }
+
+                        code = CallMethod(pattern, new[] { statement });
+                    }
+
+                    if (code == null)
+                    {
+                        Program = null;
+                        break;
+                    }
+
+                    string[][] codes = code.ToArray();
+
+                    foreach (string[] group in codes)
+                    {
+                        Program.Add(group);
+                    }
                 }
             }
-            catch (Exception e)
+
+            if (Program != null)
             {
-                output = e.Message;
+                if (!RunProg())
+                    Console.WriteLine("Something went wrong...");
+                else
+                {
+                    foreach (KeyValuePair<string, dynamic> entry in variableList)
+                    {
+                        Console.WriteLine(entry.Key + ":" + entry.Value);
+                    }
+                }
             }
-
-
-            return output;
+            else Console.WriteLine("Something went wrong...");
         }
 
-        public string Assignment(string line,int del = 0,string variableType = "", string variableName = "")
+
+        public bool RunProg(int type = 0, string subId = "") // type: 0 = Main, 1 = Sub
         {
-            string output = "";
+            bool Success = true;
 
-            string variable_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            bool hasStarted = false;
+            bool hasFinished = false;
 
-            string[] sets = Regex.Split(line, ",");
+            int size = Program.Count;
+            var progList = Program;
 
+            if (type == 1) 
+            { 
+                size = subProgram[subId].Count;
+                progList = subProgram[subId];
+            }
             try
             {
-                if (variableName == "" && variableType == "")
+                for (int index = 0; index < size; index++)
                 {
-                    variableName = Regex.Match(line, variable_p).Value;
+                    string[] statement = progList[index];
+                    string function = statement[0];
 
-                    if (isVariableReal(variableName))
+                    if (function == "Start")
+                        if (hasStarted) Success = false;
+                        else hasStarted = true;
+                    else if (function == "Stop")
                     {
-                        if (isInt(variableList[variableName])) variableType = "INT";
-                        else if (isFloat(variableList[variableName])) variableType = "FLOAT";
-                        else if (isBool(variableList[variableName])) variableType = "BOOL";
-                        else variableType = "CHAR";
+                        if (hasStarted)
+                            hasFinished = true;
+                        break;
                     }
+                    else if (function == "Comment") continue;
+
                     else
                     {
-                        throw new Exception();
-                    }
-                }
+                        string varName = statement[1];
+                        string varValue = statement[2];
 
-                var v = dataTypes[variableType];
-                
-                foreach (string set in sets)
-                {
 
-                    string[] trimmed = Regex.Split(set, "=");
-
-                    if(trimmed.Length == 2)
-                    {
-                        string variable = trimmed[0].Trim();
-                        string expression = trimmed[1].Trim();
-
-                        if (variableType == "INT" | variableType == "FLOAT")
+                        if (function == "Declaration")
                         {
-                            string[] post = Postfix.ToPostFix(expression);
-
-                            if (post != null)
+                            if (!variableList.ContainsKey(varName))
                             {
-                                v = Postfix.QuickMath(post, this);
+                                Success = CreateVar(varName, statement[2]);
                             }
-
+                            else Success = false;
                         }
-                        if (variableType == "BOOL")
+                        else if (function == "Assignment")
                         {
-                            if (expression == "\"TRUE\"") v = true;
-                            else if (expression == "\"FALSE\"") v = false;
-                            else v = IsTrue(expression);
-                            
-                            if(v == null) throw new FormatException();
+                            Success = AssignVar(varName, varValue);
                         }
-                        if (variableType == "CHAR")
+                        else if (function == "UnaryPlus" | function == "Unary")
                         {
-                            if (expression.Length == 3) v = expression[1];
-                            else throw new FormatException();
-                        }
-                    }
-                }
+                            int operType = 0;
 
-                variableList[variableName] = v;
+                            if (function == "UnaryPlus")
+                                if (statement[3] == "--") operType = 1;
+                                else
+                                if (statement[2] == "-") operType = 1;
 
-                return output;
-            }
-            catch (Exception e)
-            {
-                if(del == 1)
-                variableList.Remove(variableList.Keys.Last());
-
-                return output = e.Message;
-            }
-        }
-        public string Input(string line)
-        {
-            string output = "";
-            try
-            {
-                if (hasStarted)
-                {
-                    string[] variables = Regex.Matches(line, @"[^(INPUT:\,\s+)]\w*")
-                        .Cast<Match>()
-                        .Select(m => m.Value)   
-                        .ToArray();
-
-                    foreach (string variable in variables)
-                    {
-                        if (isVariable(variable))
-                        {
-                            if (isVariableReal(variable))
-                            {
-                                var v = variableList[variable];
-
-                                var input = Console.ReadLine();
-
-                                if (isInt(v))
-                                {
-                                    v = Int32.Parse(input);
-                                }
-                                else if (isFloat(v))
-                                {
-                                    v = Single.Parse(input);
-                                }
-                                else if (isBool(v))
-                                {
-
-                                    if (input == "TRUE")
-                                        v = true;
-                                    else if (input == "FALSE")
-                                        v = false;
-                                    else
-                                        throw new InvalidCastException();
-                                }
-                                else if (isChar(v))
-                                {
-                                    if (Regex.Match(input, @"^\w$").Success)
-                                    {
-                                        v = input;
-                                    }
-                                    else
-                                    {
-                                        throw new FormatException();
-                                    }
-                                }
-                                variableList[variable] = v;
-                                Console.Write("" + variableList[variable]);
-                            }
+                            if (function == "UnaryPlus")
+                                Success = Increment(varName, operType);
                             else
-                            {
-                                throw new NullReferenceException();
-                            }
+                                Success = Positive(varName, operType);
                         }
-                        else
+                        else if (function == "IF_statement" | function == "ELSE" | function == "WHILE_statement")
                         {
-                            throw new FormatException();
-                        }
+                            string expression = varName;
 
-                    }
+                            bool? run = IsTrue(expression);
 
-                }
-                else
-                {
-                    throw new Exception();
-                }
-            }
-            catch (Exception e)
-            {
-                output = e.Message;
-            }
-
-            return output;
-        }
-
-        public string Output(string line)
-        {
-            string output = "";
-            string outputString = "";
-            //string bug = "\nIDebug\n";
-            try
-            {
-                if (hasStarted)
-                {
-                    string input = Regex.Match(line, @"[^OUTPUT\s*:].*").Value;
-                    string head = "";
-                    bool processed = false;
-                    bool isSubstring = false;
-                    bool fromSubstring = false;
-                    int count = 0;
-
-                    try
-                    {
-
-                        while (!processed)
-                        {
-
-                            for (int i = count; i < input.Length; count++, i++)
+                            if (run == null)
                             {
-                                if (isSubstring)
-                                {
-                                    if (input[i] == '\"')
-                                    {
-                                        isSubstring = false;
-                                        fromSubstring = true;
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        head += input[i];
-                                    }
-                                }
-                                else if (input[i] == '\"')
-                                {
-                                    isSubstring = true;
-                                    fromSubstring = false;
-                                    continue;
-                                }
-                                else if (input[i] != ' ')
-                                    head += input[i];
-                                else break;
+                                Success = false;
+                                break;
                             }
 
-                            if (isVariableReal(head))
-                            {
-                                outputString += "" + variableList[head] + "";
-                            }
-                            else if (head == "&")
-                            {
-                                count++;
-                                head = "";
-                                continue;
-                            }
-                            else if (fromSubstring)
-                            {
-                                if (head.Contains("#"))
-                                {
-                                    if (head.Contains("["))
-                                    {
-                                        if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
-                                        {
-                                            throw new Exception("Invalid Escape Character!");
-                                        }
-                                        else if (head.IndexOf("]") == 1)
-                                        {
-                                            outputString += head[head.IndexOf("[") + 1];
-                                        }
-                                        else
-                                        {
-                                            bool opened = false;
-                                            bool closed = false;
-                                            for (int i = 0; i < head.Length; i++)
-                                            {
-                                                if (head[i] == '[' && opened == false)
-                                                {
-                                                    opened = true;
-                                                    continue;
-                                                }
-
-                                                if (head[i] == ']' && closed == false)
-                                                {
-                                                    closed = true;
-                                                    continue;
-                                                }
-
-                                                else if (head[i] == '[' && opened)
-                                                {
-                                                    outputString += head[i];
-                                                }
-
-                                                else if (head[i] == ']' && closed)
-                                                {
-                                                    outputString += head[i];
-                                                }
-                                                else
-                                                {
-                                                    outputString += head[i];
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        for(int i = 0; i< head.Length; i++)
-                                        {
-                                            if (head[i] != '#')
-                                                outputString += head[i];
-                                            else
-                                                outputString += "\n";
-                                        }
-                                    }
-                                }
-                                else if (head.Contains("["))
-                                {
-                                    if ((head.IndexOf("]", 2) - 2) != head.IndexOf("[", 0))
-                                    {
-                                        throw new Exception("Invalid Escape Character!");
-                                    }
-                                    else if (head.IndexOf("]") == 1)
-                                    {
-                                        outputString += head[head.IndexOf("[") + 1];
-                                    }
-                                    else
-                                    {
-                                        bool opened = false;
-                                        bool closed = false;
-                                        for (int i = 0; i < head.Length; i++)
-                                        {
-                                            if (head[i] == '[' && opened == false)
-                                            {
-                                                opened = true;
-                                                continue;
-                                            }
-
-                                            if (head[i] == ']' && closed == false)
-                                            {
-                                                closed = true;
-                                                continue;
-                                            }
-
-                                            else if (head[i] == '[' && opened)
-                                            {
-                                                outputString += head[i];
-                                            }
-
-                                            else if (head[i] == ']' && closed)
-                                            {
-                                                outputString += head[i];
-                                            }
-                                            else
-                                            {
-                                                outputString += head[i];
-                                            }
-                                        }
-                                    }
-                                }
-                                else if (head != null)
-                                {
-                                    outputString += head;
-                                }
-                            }
-                            else
-                            {
-                                throw new NullReferenceException();
-                            }
-
-                            head = "";
-                            if (count == input.Length)
-                            {
-                                processed = true;
-                            }
-                            count++;
-                        }
-                        Console.WriteLine(outputString);
-                        //Console.WriteLine(bug);
-                        outputString = null;
-                    }
-                    catch(Exception e)
-                    {
-                        throw e;
-                    }
-                }
-                else
-                {
-                    throw new Exception();
-                }
-            }
-            catch (Exception e)
-            {
-                output = e.Message;
-            }
-            return output;
-        }
-
-        public string Comment(string line)
-        {
-            string output = "";
-
-            try
-            {
-                if (hasStarted)
-                {
-                    if (Regex.Match(line, @"^\*.*").Success)
-                    {
-                        clearConsoleLine();
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("" + line);
-                        Console.ResetColor();
-                    }
-                }
-                else { throw new Exception(); }
-            }
-            catch (Exception e)
-            {
-
-                output = e.Message;
-            }
-
-            return output;
-        }
-
-        public string Unary(string line)
-        {
-            string output = "";
-
-            string variable_p = @"[a-zA-Z_][a-zA-Z0-9_]*";
-            string action_p = @"(\+\+|--)";
-
-            try
-            {
-                if (hasStarted)
-                {
-                    var variable = Regex.Match(line, variable_p).Value;
-                    var action = Regex.Match(line, action_p).Value;
-
-
-                    if (isVariable(variable))
-                    {
-                        if (isVariableReal(variable))
-                        {
+                            string SubId = varValue;
                             
-                            switch (action)
+                            if(function == "IF_statement")
                             {
-                                case "++":++variableList[variable]; break;
-                                case "--":--variableList[variable];break;
-                            }                          
-                            
-                        }
-                        else
-                        {
-                            throw new NullReferenceException();
+                                if (run == false)
+                                {
+                                    if (progList[index + 1][0] == "ELSE")
+                                    {
+                                        index++;
+                                        SubId = progList[index][2];
+                                        Success = RunProg(1, SubId);
+                                    }
+                                }
+                                else Success = RunProg(1, SubId);
+                            }
+                            else if(function == "WHILE_statement")
+                            {
+                                if (run == true)
+                                {
+                                    while (run == true)
+                                    {
+                                        Success = RunProg(1, SubId);
+
+                                        run = IsTrue(expression);
+                                    }
+                                }
+                            }
                         }
                     }
-                    else
-                    {
-                        throw new FormatException();
-                    }
 
-                }
-                else
-                {
-                    throw new Exception();
-                }
 
-            }
-            catch (Exception e)
+                    if (Success == false) break;
+                }
+            } 
+            catch(Exception e)
             {
-                output = e.Message;
+                Success = false;
             }
+            
 
-            return output;
+
+
+            return Success;
         }
-        public string IF(string line)
+
+        public bool Positive(string varName, int type = 0) // type: 0 = postive, 1 = negative
         {
-            string output = "";
             try
             {
-                string exp_p = @"\(.*\)\s*$";
-                string expression = Regex.Match(line, exp_p).Value.Trim();
+                if (type == 1)
+                    variableList[varName] *= -1;
+                else
+                    variableList[varName] = Math.Abs(variableList[varName]);
+            }catch(Exception e)
+            {
+                return false;
+            }
+            return true;
+        }
+        public bool Increment(string varName, int type = 0) // type: 0 = increment, 1 = decrement
+        {
+            try
+            {
+                if (type == 1) variableList[varName]--;
+                else variableList[varName]++;
+            }
+            catch(Exception e)
+            {
+                return false;
+            }
 
-                bool? run = IsTrue(expression);
+            return true;
+        }
 
-                if(run == null) { throw new InvalidOperationException(); }
-
-                string l = "";
-
-                Interpreter temp = new Interpreter();
-                temp.Patterns.Remove("Declaration");
-                temp.Variables = this.variableList;
-                
-                do
+        public bool CreateVar(string varName, string varType)
+        {
+            if (!isVariableReal(varName))
+            {
+                try
                 {
-                    if (temp.HasFinished) { break; }
-                    l = Console.ReadLine();
-                    string result = temp.Interpret(l);
-                    Console.WriteLine(result);
+                    variableList.Add(varName, dataTypes[varType]);
                 }
-                while (true);
-
-                if(run == true)
+                catch(Exception e)
                 {
-                    this.Variables = temp.Variables;
+                    return false;
+                }
+                return true;
+            }
+
+            return false;
+        }
+        public bool AssignVar(string varName, string val)
+        {
+            bool Success = true;
+
+            string varType = GetVarType(varName);
+            string trimVal = val.Trim();
+
+            var Var = dataTypes[varType];
+
+            try
+            {
+                if (varType == "INT" | varType == "FLOAT")
+                {
+                    string[] post = Postfix.ToPostFix(trimVal);
+
+                    if (post != null)
+                        Var = Postfix.QuickMath(post, this);
+                }
+                if (varType == "BOOL")
+                {
+                    if (trimVal == "\"TRUE\"") Var = true;
+                    else if (trimVal == "\"FALSE\"") Var = false;
+                    else Var = IsTrue(trimVal);
+
+                    if (Var == null)
+                        Success = false;
+                }
+                if (varType == "CHAR")
+                {
+                    if (trimVal.Length != 3) Success = false;
+                    else Var = trimVal[1];
                 }
             }
             catch(Exception e)
             {
-                output = e.Message;
+                Success = false;
             }
-            return output;
+            
+
+            if (Success) variableList[varName] = Var;
+
+            return Success;
+        }
+        public string GetVarType(string varName)
+        {
+            string varType = "NULL";
+
+            var Var = variableList[varName];
+
+            if (isInt(Var)) varType = "INT";
+            if (isFloat(Var)) varType = "FLOAT";
+            if (isChar(Var)) varType = "CHAR";
+            if (isBool(Var)) varType = "BOOL";
+
+            return varType;
         }
 
-        public string While(string line)
+
+        // FUNCTIONS --------------------
+
+        public List<string[]> Declaration(string statement)
         {
-            string output = "";
-            List<List<String>> program = new List<List<String>>();
+            string value    = @"(?<=\bVAR\s+).*(?=AS\s*(INT|FLOAT|BOOL|CHAR))";
+            string varName  = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            string varType  = @"\b(INT|FLOAT|BOOL|CHAR)\b";
 
-            try
+            string values = Regex.Match(statement, value).Value;
+            string[] sets = Regex.Split(values, ",");
+
+            string variableType = Regex.Match(statement, varType).Value;
+
+            List<string[]> codes = new List<string[]>();
+
+            foreach (string set in sets)
             {
-                string exp_p = @"\(.*\)\s*$";
-                string expression = Regex.Match(line, exp_p).Value.Trim();
+                string line = set.Trim();
+                string variableName = Regex.Match(line, varName).Value;
 
-                bool? run = IsTrue(expression);
-
-                if (run == null) { throw new InvalidOperationException(); }
-
-                string l = "";
-
-                Interpreter temp = new Interpreter();
-                temp.Patterns.Remove("Declaration");
-                temp.Patterns.Remove("IF");
-                temp.Patterns.Remove("While");
-                temp.Variables = this.variableList;
-
-
-                do
+                if (isVariable(variableName))
                 {
-                    List<String> sub = new List<String>();
-                    l = Console.ReadLine();
-                    if (l == "STOP")
+                    codes.Add(new[] { "Declaration", variableName, variableType });
+                    codes.Add(CallMethod("Assignment", new[] { line }).ToArray()[0]);
+                }
+                else return null; // Invalid Variable Name
+            }
+
+            return codes;
+        }
+        public List<string[]> Assignment(string statement)
+        {
+            string variableName = "";
+            string variable_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            variableName = Regex.Match(statement, variable_p).Value;
+
+            List<string[]> codes = new List<string[]>();
+
+            if (isVariable(variableName))
+            {
+                string[] trimmed = Regex.Split(statement, "=");
+
+                string value = trimmed[trimmed.Length - 1].Trim();
+
+                if (trimmed.Length > 1)
+                    for (int index = 1; index < trimmed.Length; index++)
                     {
-                        sub.Add(l);
-                        program.Add(sub);
+                        string cell = trimmed[index-1].Trim();
+
+                        if (!isVariable(cell))
+                            if ((index + 1) != trimmed.Length)
+                                return null;
+
+                        codes.Add(new[] { "Assignment", cell, value });
+                    }
+                else if (trimmed.Length == 1)
+                    codes.Add(new[] { "Assignment", trimmed[0].Trim(), "Default" });
+                else
+                    return null;
+            }
+            else return null;
+
+            return codes;
+        }
+        public List<string[]> Input(string statement)
+        {
+            string[] variables = Regex.Matches(statement, @"[^(INPUT:\,\s+)]\w*")
+                .Cast<Match>()
+                .Select(m => m.Value)   
+                .ToArray();
+
+            List<string[]> codes = new List<string[]>();
+
+            foreach (string variable in variables)
+            {
+                if (!isVariable(variable))
+                    return null;
+
+                codes.Add(new[] { "Input", variable });
+            }
+
+            return codes;
+        }
+        public List<string[]> Comment(string statement)
+        {
+            return new List<string[]>() { new[] { "Comment" } };
+        }
+        public List<string[]> UnaryPlus(string statement)
+        {
+            string varName = @"[a-zA-Z_][a-zA-Z0-9_]*";
+            string varOperator = @"(\+\+|--)";
+
+            var variableName = Regex.Match(statement, varName).Value.Trim();
+            var variableOperator = Regex.Match(statement, varOperator).Value;
+
+            List<string[]> codes = new List<string[]>();
+
+            if (!isVariable(variableName)) return null;
+
+            codes.Add(new[] { "UnaryPlus", variableName, variableOperator });
+
+            return codes;
+        }
+        public List<string[]> Unary(string statement)
+        {
+            string varName = @"^[a-zA-Z_][a-zA-Z0-9_]*";
+            string varOperator = @"(\+|\-)";
+
+            var variableName = Regex.Match(statement, varName).Value.Trim();
+            var variableOperator = Regex.Match(statement, varOperator).Value;
+
+            List<string[]> codes = new List<string[]>();
+
+            if (!isVariable(variableName)) return null;
+
+            string[] trimmed = Regex.Split(statement, "=");
+
+            string targetVariable = Regex.Match(trimmed[1], @"[a-zA-Z_][a-zA-Z0-9_]*").Value;
+
+            
+            codes.Add(new[] { "Unary", variableName, targetVariable, variableOperator });
+
+            return codes;
+        }
+        public List<string[]> IF(string[] program, int start, ref int last, int type = 0) // SUPPORTS BOTH WHILE & ELSE
+        {
+            List<string[]> SubProgram = new List<string[]>();
+
+            bool hasStarted = false;
+            bool hasFinished = false;
+
+            for (int line = start; line < program.Length; line++)
+            {
+                last = line;
+                string statement = program[line].Trim();
+
+                if (statement == "") continue; // Empty Line
+
+                string pattern = Pattern(statement);
+                if (pattern == null)
+                {
+                    SubProgram = null; // Syntax Error
+                    break;
+                }
+
+                if (pattern == "Start")
+                {
+                    if (hasStarted) // Already Started
+                    {
+                        SubProgram = null;
                         break;
-                    }
-                    else if (Regex.Match(l, @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success)
-                    {
-                        //Console.WriteLine("nisud ko here");
-                        if (whileIf == false)
-                        {
-                            whileIf = true;
-                            List<String> allIf_exp = helperIf(l);
-                            program.Add(allIf_exp);
-                        }
-                    }
-                    else if (Regex.Match(l, @"^\s*WHILE\s*\([\w\W]+\s*\)\s*$").Success)
-                    {
-                         //temp.Interpret(l);
-                        throw new Exception(); 
                     }
                     else
                     {
-                        sub.Add(l);
-                        program.Add(sub);
+                        hasStarted = true;
+                        SubProgram.Add(new[] { "Start" });
                     }
-
-                } while (true);
-
-                while ((bool)IsTrue(expression))
+                }
+                else if (pattern == "Stop")
                 {
-                    if (program[0][0] != "START") { throw new Exception("Way start"); }
-                    foreach (var p in program)
+                    if(!hasStarted) // Haven't Started
+                        SubProgram = null;
+                    else
                     {
-                        if (Regex.Match(p[0], @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success) { executeIf(p, temp); continue; }
-
-                        string result = temp.Interpret(p[0]);
-                        Console.Write(result);
-
+                        hasFinished = true;
+                        SubProgram.Add(new[] { "Stop" });
                     }
-                    temp.hasStarted = false;
-                    temp.hasFinished = false;
-                    this.Variables = temp.Variables;
+                    break;
                 }
 
-
-            }
-            catch (Exception e)
-            {
-                output = e.Message;
-            }
-            return output;
-        }
-
-        public void executeIf(List<String> s, Interpreter temp)
-        {
-            try
-            {
-                string exp_p = @"\(.*\)\s*$";
-                string expression = Regex.Match(s[0], exp_p).Value.Trim();
-                var copys = s.GetRange(1, s.Count - 1);
-                bool? run = IsTrue(expression);
-
-                if (run == null) { throw new InvalidOperationException(); }
-                if (run == true)
+                else
                 {
-                    temp.hasStarted = false;
-                    temp.hasFinished = false;
-                    if (copys[0] != "START") { throw new Exception("ay way start"); }
-                    foreach (var a in copys)
+                    List<string[]> code = null;
+
+                    if ((pattern == "IF" | pattern == "WHILE" ) && hasStarted)
                     {
-                        string result = temp.Interpret(a);
-                        Console.Write(result);
-                    }
-                    this.Variables = temp.Variables;
-                }
+                        int starting = line + 1;
+                        int last_index = starting;
 
-            }
-            catch (Exception e)
-            {
-                throw new Exception(e.Message);
-            }
-        }
+                        int subtype = 0; // 0 = IF, 1 = ELSE, 2 = WHILE
 
-        public List<String> helperIf(dynamic l)
-        {
+                        if (pattern == "WHILE") subtype = 2;
 
-            List<String> h = new List<string>();
-            h.Add(l);
-            var ll = "";
-            try
-            {
-                do
-                {
-                    if (ll == "STOP") { whileIf = false; break; }
-                    if (Regex.Match(ll, @"^\s*(IF)\s*\([\w\W]+\s*\)\s*$").Success)
-                    {
-                        if (whileIf == true)
+                        code = IF(program, starting, ref last_index, subtype);
+
+                        line = last_index;
+
+                        if(subtype == 0)
                         {
-                            throw new Exception("sorry dili pa pwede if inside if");
+                            int foundElse = findElse(program, last_index);
+
+                            if (foundElse > -1)
+                            {
+                                List<string[]> elseCode = null;
+
+                                elseCode = IF(program, foundElse, ref last, 1);
+
+                                if (elseCode == null)
+                                {
+                                    Program = null;
+                                    break;
+                                }
+
+                                code.AddRange(elseCode);
+                                line = last;
+                            }
                         }
                     }
-                    ll = Console.ReadLine();
-                    h.Add(ll);
-                } while (true);
 
+                    else if (pattern != "Start" && pattern != "Stop" && hasStarted)
+                    {
+                        if(pattern == "ELSE")
+                        {
+                            Program = null;
+                            break;
+                        }
+
+                        code = CallMethod(pattern, new[] { statement });
+                    }
+
+                    if (code == null)
+                    {
+                        SubProgram = null;
+                        break;
+                    }
+
+                    string[][] codes = code.ToArray();
+
+                    foreach (string[] group in codes)
+                    {
+                        SubProgram.Add(group);
+                    }
+                }
             }
-            catch (Exception e)
+
+            if (SubProgram == null) return null;
+
+
+            string subId = GetUniqueId();
+
+            subProgram.Add(subId, SubProgram);
+
+            string funct = "IF_statement";
+            string expression_pattern = @"\(.*\)\s*$";
+            string expression = "";
+            
+            if (type == 0 | type == 2)
+                expression = Regex.Match(program[start - 1], expression_pattern).Value.Trim();
+            else
+                expression = funct = "ELSE";
+
+            if (type == 2)
+                funct = "WHILE_statement";
+
+            return new List<string[]>()
             {
-                throw new Exception(e.Message);
+                new[] { funct, expression, subId }
+            };
+        }
+        public int findElse(string[] program, int start) // FINDS POS ELSE_statement
+        {
+            int foundIndex = -1;
+            start += 1;
+            for(int index = start; index < program.Length; index++)
+            {
+                string statement = program[index];
+
+                if (statement == "") continue; // Empty Line
+                else
+                {
+                    string pattern = Pattern(statement);
+                    if (pattern == null)
+                        break;
+
+                    if (pattern == "ELSE")
+                    {
+                        foundIndex = index + 1;
+                        break;
+                    }
+                    else
+                        break;
+                }
             }
 
-
-
-            return h;
+            return foundIndex;
         }
 
-        public bool? IsTrue(string line)
+        // HELPER FUNCTIONS --------------------
+        public void clearConsoleLine()
+        {
+            int currentLine = Console.CursorTop - 1;
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, currentLine);
+        }
+        public bool isReserved(string name)
+        {
+            return reserved.Contains(name);
+        }
+        public bool isVariable(string name)
+        {
+            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*\s*$").Success) ? (isReserved(name))? false : true : false;
+        }
+        public bool isVariableReal(string name)
+        {
+            return (this.variableList.ContainsKey(name)) ? true : false;
+        }
+        public bool isDigit(string name)
+        {
+            return Regex.Match(name, @"-?\d+|-?\d+.\d+").Success;
+        }
+        public bool isInt(dynamic var)
+        {
+            return (var.GetType() == typeof(int)) ? true : false;
+        }
+        public bool isFloat(dynamic var)
+        {
+            return (var.GetType() == typeof(float)) ? true : false;
+        }
+        public bool isBool(dynamic var)
+        {
+            return (var.GetType() == typeof(bool)) ? true : false;
+        }
+        public bool isChar(dynamic var)
+        {
+            return (var.GetType() == typeof(char)) ? true : false;
+        }
+
+        private List<string[]> CallMethod(string methodName, object[] args = null) // METHOD CALLER
+        {
+            MethodInfo method = typeof(Interpreter).GetMethod(methodName);
+            return (List<string[]>) method.Invoke(this, args);
+        }
+        private string Pattern(string statement)
+        {
+            foreach (KeyValuePair<string, string> pattern in patterns)
+            {
+                if (Regex.Match(statement, pattern.Value).Success)
+                    return pattern.Key;
+            }
+
+            return null;
+        }
+
+
+        public string GetUniqueId(int length = 12)
+        {
+            var rndDigits = new System.Text.StringBuilder().Insert(0, "0123456789", length).ToString().ToCharArray();
+            string ID = string.Join("", rndDigits.OrderBy(o => Guid.NewGuid()).Take(length));
+                
+            while (subProgram.ContainsKey(ID))
+                ID = string.Join("", rndDigits.OrderBy(o => Guid.NewGuid()).Take(length));
+
+            return ID;
+        }
+
+
+        // BOOLEAN FUNCTIONS --------------------
+        public string getBoolExpression(string line)
+        {
+            string exp_p = @"\(.*\)\s*$";
+            return Regex.Match(line, exp_p).Value.Trim();
+        }
+        public bool? IsTrue(string[] line)
         {
             bool? output = true;
-
             var stack = new Stack<string>();
             var postfix = new Stack<string>();
 
-            string word = "";
-            bool beenSpace = false;
-
             try
             {
-                string exp = line.Replace(" ", "");
-                exp = exp.Replace(" ", "");
-                exp = exp.Replace("AND", "&");
-                exp = exp.Replace("OR", "|");
-                exp = exp.Replace("NOT", "!");
+                string[] pf = (string[])line.Clone();
 
-                string pattern = @"(\&|\||\!)|([\(\)])|([\(\)])|([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)|(\<\>)|(\>\=)|(\<\=)|(\=\=)|([\<\>\=])";
-
-                string[] l = Regex.Split(exp, pattern);
-
-                for (int i = 0; i < l.Length; i++)
-                {
-                    string s = l[i];
-
-                    if (l[i] == "") continue;
-                    if (isVariable(s))
-                    {
-                        if (isVariableReal(s))
-                        {
-                            postfix.Push(s);
-                        }
-                    }
-                    else if (s == "(")
-                    {
-                        stack.Push(s);
-                    }
-                    else if (s == ")")
-                    {
-                        while (stack.Peek() != "(")
-                        {
-                            postfix.Push(stack.Pop().ToString());
-                        }
-                        stack.Pop();
-                    }
-                    else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
-                    {
-                        while (stack.Count != 0 && stack.Peek() != "(" && Priority(stack.Peek()) >= Priority(s))
-                        {
-                            postfix.Push(stack.Pop().ToString());
-                        }
-                        stack.Push(s);
-                    } 
-                    else if(Regex.Match(s, @"^(-?\d+|-?\d+.\d+)$").Success)
-                    {
-                        postfix.Push(s);
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException();
-                    }
-                }
-
-                while (stack.Count != 0)
-                {
-                    if (stack.Peek() == "(")
-                    {
-                        throw new InvalidOperationException();
-                    }
-                    else
-                    {
-                        postfix.Push(stack.Pop().ToString());
-                    }
-                }
-
-                string[] pf = postfix.Reverse().ToArray();
+                if (pf == null) throw new Exception();
 
                 var temp = new Stack<dynamic>();
-                for(int i = 0; i < pf.Length; i++)
+                for (int i = 0; i < pf.Length; i++)
                 {
                     string s = pf[i];
                     if (isVariable(s))
@@ -896,11 +792,11 @@ namespace Interpreter
                         var x = temp.Pop();
 
                         if (x.GetType() == typeof(string))
-                            if(isDigit(x))
-                            x = Single.Parse(x);
+                            if (isDigit(x))
+                                x = Single.Parse(x);
                         if (y.GetType() == typeof(string))
-                            if(isDigit(y))
-                            y = Single.Parse(y);
+                            if (isDigit(y))
+                                y = Single.Parse(y);
 
                         bool flag = false;
                         if (s == "&")
@@ -943,54 +839,184 @@ namespace Interpreter
 
             return output;
         }
+        public bool? IsTrue(string line)
+        {
+            bool? output = true;
+            var stack = new Stack<string>();
+            var postfix = new Stack<string>();
 
-        static int Priority(string c)
+            try
+            {
+                string[] pf = BoolToPostfix(line);
+
+                if (pf == null) throw new Exception();
+
+                var temp = new Stack<dynamic>();
+                for (int i = 0; i < pf.Length; i++)
+                {
+                    string s = pf[i];
+                    if (isVariable(s))
+                    {
+                        temp.Push(variableList[s]);
+                    }
+                    else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
+                    {
+                        var y = temp.Pop();
+                        var x = temp.Pop();
+
+                        if (x.GetType() == typeof(string))
+                            if (isDigit(x))
+                                x = Single.Parse(x);
+                        if (y.GetType() == typeof(string))
+                            if (isDigit(y))
+                                y = Single.Parse(y);
+
+                        bool flag = false;
+                        if (s == "&")
+                            flag = x & y;
+                        else if (s == "|")
+                            flag = x || y;
+                        else if (s == "<")
+                            flag = x < y;
+                        else if (s == ">")
+                            flag = x > y;
+                        else if (s == "<=")
+                            flag = x <= y;
+                        else if (s == ">=")
+                            flag = x >= y;
+                        else if (s == "<>")
+                            flag = x != y;
+                        else if (s == "==")
+                            flag = x == y;
+
+                        temp.Push(flag);
+                    }
+                    else if ("!".Contains(s))
+                    {
+                        var x = temp.Pop();
+                        temp.Push(!x);
+                    }
+                    else
+                    {
+                        var x = Single.Parse(s);
+                        temp.Push(s);
+                    }
+                }
+
+                output = temp.Pop();
+            }
+            catch (Exception e)
+            {
+                output = null;
+            }
+
+            return output;
+        }
+        public string[] BoolToPostfix(string line)
+        {
+            string exp = line.Replace(" ", "");
+            exp = exp.Replace(" ", "");
+            exp = exp.Replace("AND", "&");
+            exp = exp.Replace("OR", "|");
+            exp = exp.Replace("NOT", "!");
+
+            string pattern = @"(\&|\||\!)|([\(\)])|([\(\)])|([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)|(\<\>)|(\>\=)|(\<\=)|(\=\=)|([\<\>\=])";
+
+            string[] l = Regex.Split(exp, pattern);
+
+            var stack = new Stack<string>();
+            var postfix = new Stack<string>();
+
+            try
+            {
+                for (int i = 0; i < l.Length; i++)
+                {
+                    string s = l[i];
+
+                    if (l[i] == "") continue;
+                    if (isVariable(s))
+                    {
+                        if (isVariableReal(s))
+                        {
+                            postfix.Push(s);
+                        }
+                    }
+                    else if (s == "(")
+                    {
+                        stack.Push(s);
+                    }
+                    else if (s == ")")
+                    {
+                        while (stack.Peek() != "(")
+                        {
+                            postfix.Push(stack.Pop().ToString());
+                        }
+                        stack.Pop();
+                    }
+                    else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
+                    {
+                        while (stack.Count != 0 && stack.Peek() != "(" && Priority(stack.Peek()) >= Priority(s))
+                        {
+                            postfix.Push(stack.Pop().ToString());
+                        }
+                        stack.Push(s);
+                    }
+                    else if (Regex.Match(s, @"^(-?\d+|-?\d+.\d+)$").Success)
+                    {
+                        postfix.Push(s);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+
+                while (stack.Count != 0)
+                {
+                    if (stack.Peek() == "(")
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    else
+                    {
+                        postfix.Push(stack.Pop().ToString());
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+            return postfix.Reverse().ToArray();
+        }
+        private static int Priority(string c)
         {
             int p = 1;
             if (c == "!") p = -3;
-            if (c == "&" ) p = -2;
+            if (c == "&") p = -2;
             if (c == "|") p = -1;
             return p;
         }
-        public void clearConsoleLine()
+
+
+        // PROPERTIES --------------------
+        public Dictionary<string, object> Variables
         {
-            int currentLine = Console.CursorTop - 1;
-            Console.SetCursorPosition(0, Console.CursorTop);
-            Console.Write(new string(' ', Console.WindowWidth));
-            Console.SetCursorPosition(0, currentLine);
+            get { return variableList; }
+            set { variableList = value; }
         }
-        public bool isReserved(string name)
+        public Dictionary<string, string> Patterns
         {
-            return reserved.Contains(name);
+            get { return patterns; }
         }
-        public bool isVariable(string name)
+        public bool HasStarted
         {
-            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*").Success) ? (isReserved(name))? false : true : false;
+            get { return hasStarted; }
         }
-        public bool isDigit(string name)
+        public bool HasFinished
         {
-            return Regex.Match(name, @"-?\d+|-?\d+.\d+").Success;
-        }
-        public bool isVariableReal(string name)
-        {
-            return (this.variableList.ContainsKey(name)) ? true : false;
-        }
-        public bool isInt(dynamic var)
-        {
-            return (var.GetType() == typeof(int)) ? true : false;
-        }
-        public bool isFloat(dynamic var)
-        {
-            return (var.GetType() == typeof(float)) ? true : false;
-        }
-        public bool isBool(dynamic var)
-        {
-            return (var.GetType() == typeof(bool)) ? true : false;
+            get { return hasFinished; }
         }
 
-        public bool isChar(dynamic var)
-        {
-            return (var.GetType() == typeof(char)) ? true : false;
-        }
     }
 }
