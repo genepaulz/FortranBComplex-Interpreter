@@ -283,7 +283,10 @@ namespace Interpreter
                                     if (function == "UnaryPlus")
                                         Success = Increment(varName, operType);
                                     else
-                                        Success = Positive(varName, operType);
+                                    {
+                                        Success = Positive(varName, varValue, operType);
+                                    }
+                                        
                                 }
                                 else if (function == "IF_statement" | function == "ELSE" | function == "WHILE_statement")
                                 {
@@ -348,14 +351,14 @@ namespace Interpreter
             return Success;
         }
 
-        public bool Positive(string varName, int type = 0) // type: 0 = postive, 1 = negative
+        public bool Positive(string varName, string targetVar, int type = 0) // type: 0 = postive, 1 = negative
         {
             try
             {
                 if (type == 1)
-                    variableList[varName] *= -1;
+                    variableList[varName] = variableList[targetVar] * -1;
                 else
-                    variableList[varName] = Math.Abs(variableList[varName]);
+                    variableList[varName] = Math.Abs(variableList[targetVar]);
             }catch(Exception e)
             {
                 return false;
