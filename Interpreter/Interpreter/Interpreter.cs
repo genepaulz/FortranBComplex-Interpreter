@@ -359,26 +359,33 @@ namespace Interpreter
 
             try
             {
-                if (varType == "INT" | varType == "FLOAT")
+                if (trimVal == "Default")
                 {
-                    string[] post = Postfix.ToPostFix(trimVal);
 
-                    if (post != null)
-                        Var = Postfix.QuickMath(post, this);
                 }
-                if (varType == "BOOL")
+                else
                 {
-                    if (trimVal == "\"TRUE\"") Var = true;
-                    else if (trimVal == "\"FALSE\"") Var = false;
-                    else Var = IsTrue(trimVal);
+                    if (varType == "INT" | varType == "FLOAT")
+                    {
+                        string[] post = Postfix.ToPostFix(trimVal);
 
-                    if (Var == null)
-                        Success = false;
-                }
-                if (varType == "CHAR")
-                {
-                    if (trimVal.Length != 3) Success = false;
-                    else Var = trimVal[1];
+                        if (post != null)
+                            Var = Postfix.QuickMath(post, this);
+                    }
+                    if (varType == "BOOL")
+                    {
+                        if (trimVal == "\"TRUE\"") Var = true;
+                        else if (trimVal == "\"FALSE\"") Var = false;
+                        else Var = IsTrue(trimVal);
+
+                        if (Var == null)
+                            Success = false;
+                    }
+                    if (varType == "CHAR")
+                    {
+                        if (trimVal.Length != 3) Success = false;
+                        else Var = trimVal[1];
+                    }
                 }
             }
             catch(Exception e)
