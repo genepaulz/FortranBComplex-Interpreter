@@ -69,7 +69,8 @@ namespace Interpreter
                 "STOP",
                 "IF",
                 "WHILE",
-                "ELSE"
+                "ELSE",
+                "INPUT"
             };
 
             this.reserved = new List<string>(reserved);
