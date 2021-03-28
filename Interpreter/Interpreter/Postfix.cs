@@ -71,7 +71,7 @@ namespace Interpreter
                         beenSpace = true;
                         continue;
                     }
-                    else if (Char.IsDigit(c) | Char.IsLetter(c))
+                    else if (Char.IsDigit(c) | Char.IsLetter(c) | c == '.')
                     {
                         if(word != "" && beenSpace)
                         {
