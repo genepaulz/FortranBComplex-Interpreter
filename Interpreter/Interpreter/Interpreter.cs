@@ -43,7 +43,7 @@ namespace Interpreter
             var patterns = new[] {
                 new {ID = "Declaration" , Pattern = @"^\s*VAR\s+([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)""))(\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+))(\s*[+-/*]\s*(([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)))*|[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(\'\w\'|""(TRUE|FALSE)"")))*\s+AS\s+(INT|FLOAT|BOOL|CHAR)\s*$"},
                 new {ID = "Unary", Pattern = @"^[a-zA-Z_][a-zA-z0-9_]*\s*\=\s*((\+|\-)[a-zA-Z_][a-zA-z0-9_]*)"},
-                new {ID = "Assignment", Pattern = @"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*.*"},
+                new {ID = "Assignment", Pattern = @"^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*.*"},
                 new {ID = "Input", Pattern = @"^INPUT\s*:\s*([a-zA-Z_]\w*)(\s*\,\s*[a-zA-Z_]\w*)*$"},
                 //new {ID = "Output", Pattern = @"^OUTPUT\s*:.*$"},
                 new {ID = "Start", Pattern = @"^\s*(START)\s*$"},
@@ -464,7 +464,7 @@ namespace Interpreter
         public List<string[]> Declaration(string statement)
         {
             string value    = @"(?<=\bVAR\s+).*(?=AS\s*(INT|FLOAT|BOOL|CHAR))";
-            string varName  = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            string varName  = @"^[a-zA-Z_][a-zA-Z0-9_]*";
             string varType  = @"\b(INT|FLOAT|BOOL|CHAR)\b";
 
             string values = Regex.Match(statement, value).Value;
@@ -493,7 +493,7 @@ namespace Interpreter
         public List<string[]> Assignment(string statement)
         {
             string variableName = "";
-            string variable_p = @"^[a-zA-Z_][a-zA-z0-9_]*";
+            string variable_p = @"^[a-zA-Z_][a-zA-Z0-9_]*";
             variableName = Regex.Match(statement, variable_p).Value;
 
             List<string[]> codes = new List<string[]>();
@@ -761,7 +761,7 @@ namespace Interpreter
         }
         public bool isVariable(string name)
         {
-            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-z0-9_]*\s*$").Success) ? (isReserved(name))? false : true : false;
+            return (Regex.Match(name, @"^[a-zA-Z_][a-zA-Z0-9_]*\s*$").Success) ? (isReserved(name))? false : true : false;
         }
         public bool isVariableReal(string name)
         {
