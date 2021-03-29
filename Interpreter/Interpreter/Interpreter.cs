@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using calculator;
 
 namespace Interpreter
 {
@@ -477,8 +478,11 @@ namespace Interpreter
             bool processed = false;
             bool isSubstring = false;
             bool fromSubstring = false;
+            bool isOperationalSubstring = false;
+            int operationalSubstringDepth = 0;
+            bool fromOperationalSubstring = false;
             int count = 0;
-
+            //string debug = "";
             try
             {
                 while (!processed)
@@ -498,26 +502,61 @@ namespace Interpreter
                                 head += input[i];
                             }
                         }
+                        else if (isOperationalSubstring)
+                        {
+                            if (input[i] == '(')
+                            {
+                                operationalSubstringDepth++;
+                                head += input[i];
+                            }
+                            else if (input[i] == ')')
+                            {
+                                operationalSubstringDepth--;
+                                head += input[i];
+                            }
+                            else
+                            {
+                                head += input[i];
+                            }
+                            if (operationalSubstringDepth == 0)
+                            {
+                                isOperationalSubstring = false;
+                                fromOperationalSubstring = true;
+                            }
+
+                        }
                         else if (input[i] == '\"')
                         {
                             isSubstring = true;
                             fromSubstring = false;
                             continue;
-                        }
-                        else if (input[i] != ' ')
+                        }                        
+                        else if (input[i] == '(')
+                        {
+                            isOperationalSubstring = true;
+                            operationalSubstringDepth++;
                             head += input[i];
-                        else break;
+                        }
+                        else if (input[i] != ' ' && input[i] != '&')
+                            head += input[i];
+                        else if (input[i] == '&')
+                        {
+                            break;
+                        }
                     }
-
+                    
+                    //debug += head;
                     if (isVariableReal(head))
                     {
                         outputString += "" + variableList[head] + "";
                     }
-                    else if (head == "&")
+                    else if (isOperation(head))
                     {
-                        count++;
-                        head = "";
-                        continue;
+                         outputString += "" + outputMath(head) + "";
+                    }
+                    else if (fromOperationalSubstring)
+                    {
+                        outputString += "" + outputMath(head) + "";
                     }
                     else if (fromSubstring)
                     {
@@ -629,7 +668,7 @@ namespace Interpreter
                     }
                     else
                     {
-                        throw new NullReferenceException();
+                        //throw new NullReferenceException();
                     }
 
                     head = "";
@@ -645,8 +684,8 @@ namespace Interpreter
                 return false;
             }
 
-
             Console.WriteLine(outputString);
+            //Console.WriteLine(debug);
             return true;
         }
 
@@ -721,13 +760,114 @@ namespace Interpreter
 
                     }
                 }
+                else if (input[i] == '(')
+                {
+                    stuck.Push(input[i]);
+                }
+                else if (input[i] == ')')
+                {
+                    if (stuck.Count != 0)
+                    {
+                        if((char)stuck.Peek() == '(')
+                        {
+                            stuck.Pop();
+                        }                        
+                    }
+                    else
+                    {
+                        throw new Exception("Missing Parenthesis");
+                    }
+                }
             }
             if (stuck.Count == 0) balanced = true;
             return balanced;
         }
+        public bool isOperation(string input)
+        {
+            bool flag = false;
+            if
+            (
+            input.Contains("(") ||
+            input.Contains(")") ||
+            input.Contains("*") ||
+            input.Contains("/") ||
+            input.Contains("%") ||
+            input.Contains("+") ||
+            input.Contains("-") ||
+            input.Contains("<") ||
+            input.Contains(">") ||
+            input.Contains("<=") ||
+            input.Contains(">=") ||
+            input.Contains("==") ||
+            input.Contains("<>") ||
+            input.Contains("AND") ||
+            input.Contains("OR") ||
+            input.Contains("NOT")
+            )
+            {
+                flag = true;
+            }
+            return flag;
+        }        
+        public string outputMath(string input)
+        {
+            string result = "";
+                  
+            if (areAllArithmetic(input))
+            {
+                Parser p = new Parser();
+                List<Element> e = p.Parse(input);
+                InfixToPostfix i = new InfixToPostfix();
+                e = i.ConvertFromInfixToPostFix(e);
+                PostFixEvaluator pfe = new PostFixEvaluator();
+                result+=pfe.Evaluate(e).ToString();
+            }
+            else
+            {
+
+            }
+            return result;
+        }
+        public bool areAllArithmetic(string input)
+        {
+            bool flag = true;
+            if
+            (
+            input.Contains("<") ||
+            input.Contains(">") ||
+            input.Contains("<=") ||
+            input.Contains(">=") ||
+            input.Contains("==") ||
+            input.Contains("<>") ||
+            input.Contains("AND") ||
+            input.Contains("OR") ||
+            input.Contains("NOT")
+            )
+            {
+                flag = false;
+            }
+            return flag;
+        }
+        public bool areAllBoolean(string input)
+        {
+            bool flag = true;
+            if
+            (            
+            input.Contains("*") ||
+            input.Contains("/") ||
+            input.Contains("%") ||
+            input.Contains("+") ||
+            input.Contains("-")
+            )
+            {
+                flag = false;
+            }
+            return flag;
+        }
+        
         public List<string[]> Output(string statement)
         {
-            string line = Regex.Match(statement, @"[^(OUTPUT:\,\s+)][\w\W]*").Value;
+            string line = Regex.Match(statement, @"[^OUTPUT:\,\s+][\w\W]*").Value;
 
             try
             {
