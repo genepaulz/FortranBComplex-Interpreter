@@ -480,6 +480,7 @@ namespace Interpreter
             bool fromSubstring = false;
             bool isOperationalSubstring = false;
             int operationalSubstringDepth = 0;
+            int operationalSubstringDepthCounter = 0;
             bool fromOperationalSubstring = false;
             int count = 0;
             //string debug = "";
@@ -507,6 +508,7 @@ namespace Interpreter
                             if (input[i] == '(')
                             {
                                 operationalSubstringDepth++;
+                                operationalSubstringDepthCounter = operationalSubstringDepth;
                                 head += input[i];
                             }
                             else if (input[i] == ')')
@@ -535,6 +537,7 @@ namespace Interpreter
                         {
                             isOperationalSubstring = true;
                             operationalSubstringDepth++;
+                            operationalSubstringDepthCounter = operationalSubstringDepth;
                             head += input[i];
                         }
                         else if (input[i] != ' ' && input[i] != '&')
@@ -668,7 +671,7 @@ namespace Interpreter
                     }
                     else
                     {
-                        //throw new NullReferenceException();
+                        throw new NullReferenceException();
                     }
 
                     head = "";
@@ -809,6 +812,20 @@ namespace Interpreter
             }
             return flag;
         }        
+        
+        public bool? booleanMath(string input)
+        {
+            bool? result = false;
+            string[] x = BoolToPostfix(input);            
+            
+            result = IsTrue(x);            
+            return result;
+        }
+        public string logicalMath(string input)
+        {
+            string result = "";
+            return result;
+        }
         public string outputMath(string input)
         {
             string result = "";
@@ -824,7 +841,7 @@ namespace Interpreter
             }
             else
             {
-
+                result+=booleanMath(input);
             }
             return result;
         }
@@ -848,23 +865,6 @@ namespace Interpreter
             }
             return flag;
         }
-        public bool areAllBoolean(string input)
-        {
-            bool flag = true;
-            if
-            (            
-            input.Contains("*") ||
-            input.Contains("/") ||
-            input.Contains("%") ||
-            input.Contains("+") ||
-            input.Contains("-")
-            )
-            {
-                flag = false;
-            }
-            return flag;
-        }
-        
         public List<string[]> Output(string statement)
         {
             string line = Regex.Match(statement, @"[^OUTPUT:\,\s+][\w\W]*").Value;

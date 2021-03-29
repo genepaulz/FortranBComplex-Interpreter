@@ -19,7 +19,7 @@ namespace Interpreter
 
             if (readFile)
             {
-                string[] lines = File.ReadAllLines(@"C:\Users\Zafra\Desktop\test1.txt");
+                string[] lines = File.ReadAllLines(@"C:\Users\Zafra\Desktop\test11.txt");
 
                 interpreter.PreRead(lines);
             }
