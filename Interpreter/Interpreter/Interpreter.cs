@@ -294,7 +294,11 @@ namespace Interpreter
                                 {
                                     string expression = varName;
 
-                                    bool? run = IsTrue(expression);
+                                    bool? run = true;
+
+                                    if(function != "ELSE")
+                                        run = IsTrue(expression);
+                                    
 
                                     if (run == null)
                                     {
