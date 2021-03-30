@@ -1334,6 +1334,14 @@ namespace Interpreter
                     {
                         temp.Push(variableList[s]);
                     }
+                    else if(s == "\"TRUE\"" || s == "TRUE")
+                    {
+                        temp.Push(true);
+                    }
+                    else if (s== "\"FALSE\"" |s == "FALSE")
+                    {
+                        temp.Push(false);
+                    }
                     else if (Regex.Match(s, @"(\<\=)|(\>\=)|(\<\>)|(\<)|(\>)|(\=\=)|(\&)|(\|)|(\!)").Success)
                     {
                         var y = temp.Pop();
@@ -1395,7 +1403,7 @@ namespace Interpreter
             exp = exp.Replace("OR", "|");
             exp = exp.Replace("NOT", "!");
 
-            string pattern = @"(\&|\||\!)|([\(\)])|([\(\)])|([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)|(\<\>)|(\>\=)|(\<\=)|(\=\=)|([\<\>\=])";
+            string pattern = @"(\&|\||\!)|([\(\)])|([\(\)])|([a-zA-Z][a-zA-Z0-9]*|-?\d+|-?\d+.\d+)|(\<\>)|(\>\=)|(\<\=)|(\=\=)|([\<\>\=])|(""TRUE""|""FALSE"")";
 
             string[] l = Regex.Split(exp, pattern);
 
@@ -1415,6 +1423,10 @@ namespace Interpreter
                         {
                             postfix.Push(s);
                         }
+                    }
+                    else if(s == "\"TRUE\"" | s== "\"FALSE\"")
+                    {
+                        postfix.Push(s);
                     }
                     else if (s == "(")
                     {
